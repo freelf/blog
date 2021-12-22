@@ -57,6 +57,13 @@ progress,
 video {
     display: inline-block;
     vertical-align: baseline;
+    
+    padding: 0;
+    width: calc(100% );
+    /* expand with to image + margins */
+    min-width: 0;
+    max-width: 100%;
+    
 }
 
 audio:not([controls]) {
@@ -2367,7 +2374,6 @@ body.page-template .post-title {
         max-width: 112%;
         /* fallback when calc doesn't work */
     }
-
     .post-meta {
         font-size: 1.3rem;
         margin-top: 1rem;
