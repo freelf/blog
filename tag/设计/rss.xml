@@ -1,0 +1,1161 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+   
+      <title>freelf.me</title>
+   
+   <link></link>
+   <description>Freelf's Blog</description>
+   <language>en-uk</language>
+   <managingEditor> Freelf</managingEditor>
+   <atom:link href="rss" rel="self" type="application/rss+xml" />
+   
+	<item>
+	  <title>原型模式</title>
+	  <link>//%E5%8E%9F%E5%9E%8B%E6%A8%A1%E5%BC%8F</link>
+	  <author>Freelf</author>
+	  <pubDate>2019-08-13T00:00:00+00:00</pubDate>
+	  <guid>//%E5%8E%9F%E5%9E%8B%E6%A8%A1%E5%BC%8F</guid>
+	  <description><![CDATA[
+	     <p>前面讨论了工厂模式，这里接着探索创建型模式。在这里考虑一个订单系统，里面有一个保存订单的功能。要求是如果订单预定的产品数量超过1000，就需要把订单拆分成两份订单来保存。如果拆成两份后还是超过1000，那就继续拆分。知道每份订单数量不超过1000。至于为什么要拆分，是为了方便后续处理，后续是有人工来处理，每个人处理能力是1000。根据业务，目前订单类型有两种，企业订单和个人订单。</p>
+
+<h2 id="场景问题">场景问题</h2>
+<p>分析上面的业务需求，有人可能会想，很简单嘛，一共就一个功能，没什么困难的，下面尝试实现一下。</p>
+
+<p>首先，如果想要实现通用的订单处理，而不关心订单类型，订单处理对象应该面向一个订单的接口而不是具体对象。这里先定义订单接口：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@protocol</span> <span class="nc">OrderApi</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+<span class="c1">// 订单数量
+</span><span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">assign</span><span class="p">)</span> <span class="n">NSUInteger</span> <span class="n">productNumber</span><span class="p">;</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>个人订单实现：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">PersonalOrder</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">productId</span><span class="p">;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">customerName</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">PersonalOrder</span>
+<span class="p">{</span>
+	<span class="n">NSUInteger</span> <span class="n">_productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">setProductNumber</span><span class="o">:</span><span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">productNumber</span> <span class="p">{</span>
+	<span class="n">_productNumber</span> <span class="o">=</span> <span class="n">productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">productNumber</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="n">_productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="o">-</span><span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">description</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">stringWithFormat</span><span class="p">:</span><span class="s">@"本个人订单的订购人是%@，订购产品是%@，订购数量是%zd"</span><span class="p">,</span><span class="n">self</span><span class="p">.</span><span class="n">customerName</span><span class="p">,</span><span class="n">self</span><span class="p">.</span><span class="n">productId</span><span class="p">,</span> <span class="n">self</span><span class="p">.</span><span class="n">productNumber</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>企业订单实现：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">EnterpriseOrder</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">productId</span><span class="p">;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">enterpriseName</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">EnterpriseOrder</span>
+<span class="p">{</span>
+	<span class="n">NSUInteger</span> <span class="n">_productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">setProductNumber</span><span class="o">:</span><span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">productNumber</span> <span class="p">{</span>
+	<span class="n">_productNumber</span> <span class="o">=</span> <span class="n">productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">productNumber</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="n">_productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="o">-</span><span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">description</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">stringWithFormat</span><span class="p">:</span><span class="s">@"本个人订单的订购人是%@，订购产品是%@，订购数量是%zd"</span><span class="p">,</span><span class="n">self</span><span class="p">.</span><span class="n">enterpriseName</span><span class="p">,</span><span class="n">self</span><span class="p">.</span><span class="n">productId</span><span class="p">,</span> <span class="n">self</span><span class="p">.</span><span class="n">productNumber</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>实现好了订单对象，接下来看看如何实现通用订单处理：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">OrderBusiness</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">saveOrder</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">order</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">OrderBusiness</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">saveOrder</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">order</span> <span class="p">{</span>
+	<span class="k">while</span> <span class="p">(</span><span class="n">order</span><span class="p">.</span><span class="n">productNumber</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">)</span> <span class="p">{</span>
+		<span class="c1">// 在这里需要创建新的订单
+</span>	<span class="p">}</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>写到这里有个问题，在订单商品数量超过1000的时候需要创建新的订单，但是这里只知道订单的接口，不知道具体是个人订单还是企业订单。有同学可能说在这里判断一下类型不就行了，但是这样就关心订单的类型和具体实现了。</p>
+
+<p>现在这里有个问题：<strong>已经有了某种对象，如何能够快速简单的创建出更多的这种对象？</strong></p>
+
+<h2 id="使用原型模式解决">使用原型模式解决</h2>
+
+<blockquote>
+  <p>用原型实例指定创建对象的种类，并通过拷贝这些原型创建新的对象。</p>
+</blockquote>
+
+<p>分析上面的问题，已经有了订单接口类型的对象实例，是从外部传入的，但是这里并不知道对象的具体实现。但是现在需要创建一个相同类型的对象，看起来就像是通过接口来创建对象一样。</p>
+
+<p>原型模式就是解决这样的问题，原型模式要求对象实现一个拷贝自身的接口，这样就可以通过拷贝方法来克隆一个实例对象本身来创建一个新的实例。如果把这个方法定义在接口上，看起来就像是通过接口来创建了新的对象。这样以来，通过原型实例创建新的对象实例，就不需要考虑对象的具体类型了，原型模式类图如下：
+<img src="http://nightwish.oss-cn-beijing.aliyuncs.com/2019-08-13-095258.png" alt="" />
+接下来用原型模式继续前面的例子：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@protocol</span> <span class="nc">OrderApi</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">assign</span><span class="p">)</span> <span class="n">NSUInteger</span> <span class="n">productNumber</span><span class="p">;</span>
+<span class="c1">// 接口加了这样一个方法
+</span><span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">copyOrder</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="c1">// 个人订单
+</span><span class="k">@interface</span> <span class="nc">PersonalOrder</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">productId</span><span class="p">;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">customerName</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">PersonalOrder</span>
+<span class="p">{</span>
+	<span class="n">NSUInteger</span> <span class="n">_productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">setProductNumber</span><span class="o">:</span><span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">productNumber</span> <span class="p">{</span>
+	<span class="n">_productNumber</span> <span class="o">=</span> <span class="n">productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">productNumber</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="n">_productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="o">-</span><span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">description</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">stringWithFormat</span><span class="p">:</span><span class="s">@"本个人订单的订购人是%@，订购产品是%@，订购数量是%zd"</span><span class="p">,</span><span class="n">self</span><span class="p">.</span><span class="n">customerName</span><span class="p">,</span><span class="n">self</span><span class="p">.</span><span class="n">productId</span><span class="p">,</span> <span class="n">self</span><span class="p">.</span><span class="n">productNumber</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="c1">// 实现拷贝方法
+</span><span class="o">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">copyOrder</span> <span class="p">{</span>
+	<span class="n">PersonalOrder</span> <span class="o">*</span><span class="n">order</span> <span class="o">=</span> <span class="p">[[</span><span class="n">self</span> <span class="nf">class</span><span class="p">]</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">order</span><span class="p">.</span><span class="n">productId</span> <span class="o">=</span> <span class="n">self</span><span class="p">.</span><span class="n">productId</span><span class="p">;</span>
+	<span class="n">order</span><span class="p">.</span><span class="n">productNumber</span> <span class="o">=</span> <span class="n">self</span><span class="p">.</span><span class="n">productNumber</span><span class="p">;</span>
+	<span class="n">order</span><span class="p">.</span><span class="n">customerName</span> <span class="o">=</span> <span class="n">self</span><span class="p">.</span><span class="n">customerName</span><span class="p">;</span>
+	<span class="k">return</span> <span class="n">order</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">//企业订单
+</span><span class="k">@interface</span> <span class="nc">EnterpriseOrder</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">productId</span><span class="p">;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">enterpriseName</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">EnterpriseOrder</span>
+<span class="p">{</span>
+	<span class="n">NSUInteger</span> <span class="n">_productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">setProductNumber</span><span class="o">:</span><span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">productNumber</span> <span class="p">{</span>
+	<span class="n">_productNumber</span> <span class="o">=</span> <span class="n">productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">productNumber</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="n">_productNumber</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="o">-</span><span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">description</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">stringWithFormat</span><span class="p">:</span><span class="s">@"本个人订单的订购人是%@，订购产品是%@，订购数量是%zd"</span><span class="p">,</span><span class="n">self</span><span class="p">.</span><span class="n">enterpriseName</span><span class="p">,</span><span class="n">self</span><span class="p">.</span><span class="n">productId</span><span class="p">,</span> <span class="n">self</span><span class="p">.</span><span class="n">productNumber</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="c1">// 实现拷贝方法
+</span><span class="o">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">copyOrder</span> <span class="p">{</span>
+	<span class="n">EnterpriseOrder</span> <span class="o">*</span><span class="n">order</span> <span class="o">=</span> <span class="p">[[</span><span class="n">self</span> <span class="nf">class</span><span class="p">]</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">order</span><span class="p">.</span><span class="n">productId</span> <span class="o">=</span> <span class="n">self</span><span class="p">.</span><span class="n">productId</span><span class="p">;</span>
+	<span class="n">order</span><span class="p">.</span><span class="n">productNumber</span> <span class="o">=</span> <span class="n">self</span><span class="p">.</span><span class="n">productNumber</span><span class="p">;</span>
+	<span class="n">order</span><span class="p">.</span><span class="n">enterpriseName</span> <span class="o">=</span> <span class="n">self</span><span class="p">.</span><span class="n">enterpriseName</span><span class="p">;</span>
+	<span class="k">return</span> <span class="n">order</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// 处理订单业务
+</span><span class="k">@interface</span> <span class="nc">OrderBusiness</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">saveOrder</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">order</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">OrderBusiness</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">saveOrder</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">order</span> <span class="p">{</span>
+	<span class="k">while</span> <span class="p">(</span><span class="n">order</span><span class="p">.</span><span class="n">productNumber</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">)</span> <span class="p">{</span>
+		<span class="c1">// 在这里直接拷贝
+</span>		<span class="n">id</span><span class="o">&lt;</span><span class="n">OrderApi</span><span class="o">&gt;</span> <span class="n">newOrder</span> <span class="o">=</span> <span class="p">[</span><span class="n">order</span> <span class="nf">copyOrder</span><span class="p">];</span>
+		<span class="n">newOrder</span><span class="p">.</span><span class="n">productNumber</span>  <span class="o">=</span> <span class="mi">1000</span><span class="p">;</span>
+		<span class="n">order</span><span class="p">.</span><span class="n">productNumber</span>  <span class="o">-=</span> <span class="mi">1000</span><span class="p">;</span>
+		<span class="n">NSLog</span><span class="p">(</span><span class="s">@"拆分生成订单--%@"</span><span class="p">,</span> <span class="n">newOrder</span><span class="p">);</span>
+	<span class="p">}</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"订单--%@"</span><span class="p">,</span><span class="n">order</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 客户端实现
+</span><span class="kt">int</span> <span class="n">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">PersonalOrder</span> <span class="o">*</span><span class="n">order</span> <span class="o">=</span> <span class="p">[</span><span class="n">PersonalOrder</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">order</span><span class="p">.</span><span class="n">customerName</span> <span class="o">=</span> <span class="s">@"张三"</span><span class="p">;</span>
+	<span class="n">order</span><span class="p">.</span><span class="n">productId</span> <span class="o">=</span> <span class="s">@"1"</span><span class="p">;</span>
+	<span class="n">order</span><span class="p">.</span><span class="n">productNumber</span> <span class="o">=</span> <span class="mi">2005</span><span class="p">;</span>
+	
+	<span class="n">OrderBusiness</span> <span class="o">*</span><span class="n">business</span> <span class="o">=</span> <span class="p">[</span><span class="n">OrderBusiness</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">business</span> <span class="nf">saveOrder</span><span class="p">:</span><span class="n">order</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="c1">// 打印出来：
+</span><span class="err">拆分生成订单</span><span class="o">--</span><span class="err">本个人订单的订购人是张三，订购产品是</span><span class="mi">1</span><span class="err">，订购数量是</span><span class="mi">1000</span>
+<span class="err">拆分生成订单</span><span class="o">--</span><span class="err">本个人订单的订购人是张三，订购产品是</span><span class="mi">1</span><span class="err">，订购数量是</span><span class="mi">1000</span>
+<span class="err">订单</span><span class="o">--</span><span class="err">本个人订单的订购人是张三，订购产品是</span><span class="mi">1</span><span class="err">，订购数量是</span><span class="mi">5</span>
+</code></pre></div></div>
+
+<h2 id="深拷贝和浅拷贝">深拷贝和浅拷贝</h2>
+<p>说到原型模式，不可避免的需要谈一下深拷贝和浅拷贝。其实这两种很好区分。深拷贝是指对一个对象的内存进行一份拷贝，拷贝对象的内存和原对象的内存是不一样的，如果对象内部有引用类型，引用类型的内存也需要就行拷贝，一值拷贝下去。除了深拷贝，其他的都是浅拷贝，也就是说只拷贝一层引用也是浅拷贝。原型模式一般都是深拷贝。</p>
+<h2 id="思考原型模式">思考原型模式</h2>
+<p>原型模式的本质是：<strong>拷贝生成对象</strong>。拷贝是手段，目标是生成新的对象实例。原型模式可以用来解决只知道接口而不知实现创建对象的问题。原型模式的重心是创建新的对象实例，至于创建出来的对象，其属性值和原型对象可以一样也可以不一样。目前大多数实现中是一样的，可以有选择性的拷贝。</p>
+
+<p>原型是一个很容易理解的设计模式，在iOS中有NSCopy协议来让对象具有拷贝功能。</p>
+
+	  ]]></description>
+	</item>
+
+	<item>
+	  <title>Builder模式</title>
+	  <link>//Builder%E6%A8%A1%E5%BC%8F</link>
+	  <author>Freelf</author>
+	  <pubDate>2019-08-05T00:00:00+00:00</pubDate>
+	  <guid>//Builder%E6%A8%A1%E5%BC%8F</guid>
+	  <description><![CDATA[
+	     <p>前面讨论了工厂模式，这里接着探索创建类型的设计模式。在讨论工厂模式的时候提出了一个导出数据的应用框架。这里接着对这个框架做一些补充，这些补充的地方会用到Builder模式。</p>
+<h2 id="场景问题">场景问题</h2>
+<p>对于导出数据的框架，在导出的文件上会有一些约定的方式，比如导出成文本格式、数据库模式、xml格式等等。在工厂模式中，使用工厂模式解决了如何选择具体的导出方式，并没有涉及每种导出方式的实现。也就是说，在工厂模式里面，并没有讨论如何实现导出文本、数据库、PDF等具体的格式，这里就来讨论这个问题。
+对于导出数据的应用框架，通常对于导出数据的导出内容和格式是有要求的，比如现在有如下要求：</p>
+<ol>
+  <li>导出的文件，不管什么格式，必须有文件头、文件体和文件尾，文件头、文件体和文件尾之间要换行。</li>
+  <li>文件头需要以下描述信息：导出数据的日期和编号。</li>
+  <li>文件体表示文件的内容。</li>
+  <li>文件尾需要有导出人的信息。</li>
+</ol>
+
+<p>接下来看一下平常情况下如何实现，下面先把文件的各个部分的数据对象定义出来：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 文件头
+</span><span class="k">@interface</span> <span class="nc">ExportHeaderModel</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="cm">/**
+ 导出日期
+ */</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">exportDateString</span><span class="p">;</span>
+<span class="cm">/**
+ 导出文件ID
+ */</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">assign</span><span class="p">)</span> <span class="n">NSInteger</span> <span class="n">exportId</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="c1">// 文件内容
+</span><span class="k">@interface</span> <span class="nc">ExportDataModel</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="cm">/**
+ 导出文件内容
+ */</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">content</span><span class="p">;</span>
+
+<span class="k">@end</span>
+
+<span class="c1">// 文件尾
+</span><span class="k">@interface</span> <span class="nc">ExportFooterModel</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="cm">/**
+ 导出文件用户
+ */</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">copy</span><span class="p">)</span> <span class="n">NSString</span> <span class="o">*</span><span class="n">exportUser</span><span class="p">;</span>
+
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>接下来看一下导出数据的实现，先看一下导出文本数据实现：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">ExportToTxt</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">exportToTxtWithHeader</span><span class="p">:(</span><span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">header</span> <span class="nf">content</span><span class="p">:(</span><span class="n">ExportDataModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span> <span class="nf">footer</span><span class="p">:(</span><span class="n">ExportFooterModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">footer</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">ExportToTxt</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">exportToTxtWithHeader</span><span class="p">:(</span><span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">header</span> <span class="nf">content</span><span class="p">:(</span><span class="n">ExportDataModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span> <span class="nf">footer</span><span class="p">:(</span><span class="n">ExportFooterModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">footer</span> <span class="p">{</span>
+	<span class="n">NSMutableString</span> <span class="o">*</span><span class="n">stringBuffer</span> <span class="o">=</span> <span class="p">[</span><span class="s">@""</span> <span class="nf">mutableCopy</span><span class="p">];</span>
+	<span class="n">NSString</span> <span class="o">*</span><span class="n">headerString</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">stringWithFormat</span><span class="p">:</span><span class="s">@"%zd,%@</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">header</span><span class="p">.</span><span class="n">exportId</span><span class="p">,</span> <span class="n">header</span><span class="p">.</span><span class="n">exportDateString</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">stringBuffer</span> <span class="nf">appendString</span><span class="p">:</span><span class="n">headerString</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">stringBuffer</span> <span class="nf">appendFormat</span><span class="p">:</span><span class="s">@"%@</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">data</span><span class="p">.</span><span class="n">content</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">stringBuffer</span> <span class="nf">appendFormat</span><span class="p">:</span><span class="s">@"%@</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">footer</span><span class="p">.</span><span class="n">exportUser</span><span class="p">];</span>
+	
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"export txt: </span><span class="se">\n</span><span class="s">%@"</span><span class="p">,</span> <span class="n">stringBuffer</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>接下来看一下导出xml数据的实现：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">ExportToXml</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">exportToXmlWithHeader</span><span class="p">:(</span><span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">header</span> <span class="nf">content</span><span class="p">:(</span><span class="n">ExportDataModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span> <span class="nf">footer</span><span class="p">:(</span><span class="n">ExportFooterModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">footer</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">ExportToXml</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">exportToXmlWithHeader</span><span class="p">:(</span><span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">header</span> <span class="nf">content</span><span class="p">:(</span><span class="n">ExportDataModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span> <span class="nf">footer</span><span class="p">:(</span><span class="n">ExportFooterModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">footer</span> <span class="p">{</span>
+	  <span class="n">NSMutableString</span> <span class="o">*</span><span class="n">stringBuffer</span> <span class="o">=</span> <span class="p">[</span><span class="s">@"&lt;?xml version='1.0' encoding='gb2312'?&gt;</span><span class="se">\n</span><span class="s">"</span> <span class="nf">mutableCopy</span><span class="p">];</span>
+	
+	<span class="n">NSString</span> <span class="o">*</span><span class="n">headerString</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">stringWithFormat</span><span class="p">:</span><span class="s">@"%zd,%@ </span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">header</span><span class="p">.</span><span class="n">exportId</span><span class="p">,</span> <span class="n">header</span><span class="p">.</span><span class="n">exportDateString</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">stringBuffer</span> <span class="nf">appendString</span><span class="p">:</span><span class="n">headerString</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">stringBuffer</span> <span class="nf">appendFormat</span><span class="p">:</span><span class="s">@"%@</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">data</span><span class="p">.</span><span class="n">content</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">stringBuffer</span> <span class="nf">appendFormat</span><span class="p">:</span><span class="s">@"%@</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">footer</span><span class="p">.</span><span class="n">exportUser</span><span class="p">];</span>
+	
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"export xml: </span><span class="se">\n</span><span class="s">%@"</span><span class="p">,</span> <span class="n">stringBuffer</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>接下来看一下客户端如何使用这些对象：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportHeaderModel</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">header</span><span class="p">.</span><span class="n">exportId</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+	<span class="n">header</span><span class="p">.</span><span class="n">exportDateString</span> <span class="o">=</span> <span class="s">@"2019-08-04"</span><span class="p">;</span>
+	
+	<span class="n">ExportDataModel</span> <span class="o">*</span><span class="n">content</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportDataModel</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">content</span><span class="p">.</span><span class="n">content</span> <span class="o">=</span> <span class="s">@"导出的数据"</span><span class="p">;</span>
+	
+	<span class="n">ExportFooterModel</span> <span class="o">*</span><span class="n">footer</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportFooterModel</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">footer</span><span class="p">.</span><span class="n">exportUser</span> <span class="o">=</span> <span class="s">@"Freelf"</span><span class="p">;</span>
+	
+   <span class="p">[[</span><span class="n">ExportToTxt</span> <span class="nf">new</span><span class="p">]</span> <span class="nf">exportToTxtWithHeader</span><span class="p">:</span><span class="n">header</span> <span class="nf">content</span><span class="p">:</span><span class="n">content</span> <span class="n">footer</span><span class="o">:</span><span class="n">footer</span><span class="p">];</span>
+
+	<span class="p">[[</span><span class="n">ExportToXml</span> <span class="nf">new</span><span class="p">]</span> <span class="nf">exportToTxtWithHeader</span><span class="p">:</span><span class="n">header</span> <span class="nf">content</span><span class="p">:</span><span class="n">content</span> <span class="n">footer</span><span class="o">:</span><span class="n">footer</span><span class="p">];</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>仔细观察上面的代码，会发现，不管输出成文本文件还是xml文件，基本步骤都是一样的：</p>
+<ol>
+  <li>先拼接文件头内容</li>
+  <li>拼接文件体内容</li>
+  <li>拼接文件尾内容</li>
+  <li>最后把拼接好的文件输出称为文件</li>
+</ol>
+
+<p>也就是说对于不同的输出格式，处理步骤是一样的，但是每部步骤的具体实现是不一样的，所以可以把构建每种格式文件的处理过程和具体实现分开，这样可以复用构建过程，而且也很容易切换不同的输出格式。</p>
+
+<h2 id="使用builder模式解决">使用Builder模式解决</h2>
+
+<blockquote>
+  <p>将一个复杂对象的构建与它的表示分离，使得同样的构建过程可以创建不同的表示。</p>
+</blockquote>
+
+<p>构建没中格式数据文件的处理过程，这不就是构建过程么，每种格式的具体步骤表现，不就相当于不同的表示么。因为不同的步骤实现，决定了最终的表现就不同。在Builder模式中，把构建过程称为指导者，由它来指导装配的过程，但是不负责每步的实现。当然光有指导者是不够的，必须要有具体实现每步的对象，在Builder模式中，称这些实现对象为生成器。结构类图如下：
+<img src="http://nightwish.oss-cn-beijing.aliyuncs.com/2019-08-05-025506.png" alt="" />
+要特别注意，Builder模式分成两个很重要的部分：</p>
+<ol>
+  <li>一部分是Builder接口，这里是定义了如何构建各个部件，也就是知道每个部件功能如何实现，以及如何装配这些部件到产品中去。</li>
+  <li>另一部分是Director，Director知道如何组合来构建产品。</li>
+</ol>
+
+<p>接下来，使用Builder模式来重写上面的例子：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// builder接口
+</span><span class="k">@protocol</span> <span class="nc">Builder</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">buildHeader</span><span class="o">:</span><span class="p">(</span><span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="p">)</span><span class="n">header</span><span class="p">;</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">buildContent</span><span class="p">:(</span><span class="n">ExportDataModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">content</span><span class="p">;</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">buildFooter</span><span class="p">:(</span><span class="n">ExportFooterModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">footer</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="c1">// builder具体实现
+</span>
+<span class="c1">// 导出txt
+</span><span class="k">@interface</span> <span class="nc">ExportToTxt</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">Builder</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">getResult</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@interface</span> <span class="nc">ExportToTxt</span> <span class="p">()</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">NSMutableString</span> <span class="o">*</span><span class="n">stringBuffer</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">ExportToTxt</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="n">init</span>
+<span class="p">{</span>
+	<span class="n">self</span> <span class="o">=</span> <span class="p">[</span><span class="n">super</span> <span class="nf">init</span><span class="p">];</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">self</span><span class="p">)</span> <span class="p">{</span>
+		<span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span>  <span class="o">=</span> <span class="s">@""</span><span class="p">.</span><span class="n">mutableCopy</span><span class="p">;</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="n">self</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">buildHeader</span><span class="o">:</span><span class="p">(</span><span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="p">)</span><span class="n">header</span> <span class="p">{</span>
+	<span class="n">NSString</span> <span class="o">*</span><span class="n">headerString</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">stringWithFormat</span><span class="p">:</span><span class="s">@"%zd,%@ </span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">header</span><span class="p">.</span><span class="n">exportId</span><span class="p">,</span> <span class="n">header</span><span class="p">.</span><span class="n">exportDateString</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span> <span class="nf">appendString</span><span class="p">:</span><span class="n">headerString</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">buildContent</span><span class="o">:</span><span class="p">(</span><span class="n">ExportDataModel</span> <span class="o">*</span><span class="p">)</span><span class="n">content</span> <span class="p">{</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span> <span class="nf">appendFormat</span><span class="p">:</span><span class="s">@"%@</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">content</span><span class="p">.</span><span class="n">content</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">buildFooter</span><span class="o">:</span><span class="p">(</span><span class="n">ExportFooterModel</span> <span class="o">*</span><span class="p">)</span><span class="n">footer</span> <span class="p">{</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span> <span class="nf">appendFormat</span><span class="p">:</span><span class="s">@"%@</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">footer</span><span class="p">.</span><span class="n">exportUser</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">getResult</span> <span class="p">{</span>
+	<span class="k">return</span>  <span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 导出xml
+</span><span class="k">@interface</span> <span class="nc">ExportToXml</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">Builder</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">getResult</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@interface</span> <span class="nc">ExportToXml</span> <span class="p">()</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">NSMutableString</span> <span class="o">*</span><span class="n">stringBuffer</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">ExportToXml</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="n">init</span>
+<span class="p">{</span>
+	<span class="n">self</span> <span class="o">=</span> <span class="p">[</span><span class="n">super</span> <span class="nf">init</span><span class="p">];</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">self</span><span class="p">)</span> <span class="p">{</span>
+		<span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span>  <span class="o">=</span> <span class="s">@"&lt;?xml version='1.0' encoding='gb2312'?&gt;</span><span class="se">\n</span><span class="s">"</span><span class="p">.</span><span class="n">mutableCopy</span><span class="p">;</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="n">self</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">buildHeader</span><span class="o">:</span><span class="p">(</span><span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="p">)</span><span class="n">header</span> <span class="p">{</span>
+	<span class="n">NSString</span> <span class="o">*</span><span class="n">headerString</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">stringWithFormat</span><span class="p">:</span><span class="s">@"%zd,%@ </span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">header</span><span class="p">.</span><span class="n">exportId</span><span class="p">,</span> <span class="n">header</span><span class="p">.</span><span class="n">exportDateString</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span> <span class="nf">appendString</span><span class="p">:</span><span class="n">headerString</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">buildContent</span><span class="o">:</span><span class="p">(</span><span class="n">ExportDataModel</span> <span class="o">*</span><span class="p">)</span><span class="n">content</span> <span class="p">{</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span> <span class="nf">appendFormat</span><span class="p">:</span><span class="s">@"%@</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">content</span><span class="p">.</span><span class="n">content</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">buildFooter</span><span class="o">:</span><span class="p">(</span><span class="n">ExportFooterModel</span> <span class="o">*</span><span class="p">)</span><span class="n">footer</span> <span class="p">{</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span> <span class="nf">appendFormat</span><span class="p">:</span><span class="s">@"%@</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">footer</span><span class="p">.</span><span class="n">exportUser</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">getResult</span> <span class="p">{</span>
+	<span class="k">return</span>  <span class="n">self</span><span class="p">.</span><span class="n">stringBuffer</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">@end</span>
+
+<span class="c1">// director
+</span><span class="k">@interface</span> <span class="nc">Director</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">id</span><span class="o">&lt;</span><span class="n">Builder</span><span class="o">&gt;</span> <span class="n">builder</span><span class="p">;</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">constructWithHeader</span><span class="p">:(</span><span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">header</span> <span class="nf">content</span><span class="p">:(</span><span class="n">ExportDataModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">content</span> <span class="nf">footer</span><span class="p">:(</span><span class="n">ExportFooterModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">footer</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">Director</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">constructWithHeader</span><span class="p">:(</span><span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">header</span> <span class="nf">content</span><span class="p">:(</span><span class="n">ExportDataModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">content</span> <span class="nf">footer</span><span class="p">:(</span><span class="n">ExportFooterModel</span> <span class="o">*</span><span class="p">)</span><span class="nv">footer</span> <span class="p">{</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">builder</span> <span class="nf">buildHeader</span><span class="p">:</span><span class="n">header</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">builder</span> <span class="nf">buildContent</span><span class="p">:</span><span class="n">content</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">builder</span> <span class="nf">buildFooter</span><span class="p">:</span><span class="n">footer</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>接下来来看客户端如何使用：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">ExportHeaderModel</span> <span class="o">*</span><span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportHeaderModel</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">header</span><span class="p">.</span><span class="n">exportId</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+	<span class="n">header</span><span class="p">.</span><span class="n">exportDateString</span> <span class="o">=</span> <span class="s">@"2019-08-04"</span><span class="p">;</span>
+	
+	<span class="n">ExportDataModel</span> <span class="o">*</span><span class="n">content</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportDataModel</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">content</span><span class="p">.</span><span class="n">content</span> <span class="o">=</span> <span class="s">@"导出的数据"</span><span class="p">;</span>
+	
+	<span class="n">ExportFooterModel</span> <span class="o">*</span><span class="n">footer</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportFooterModel</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">footer</span><span class="p">.</span><span class="n">exportUser</span> <span class="o">=</span> <span class="s">@"Freelf"</span><span class="p">;</span>
+	
+	<span class="n">ExportToTxt</span> <span class="o">*</span><span class="n">exportTxt</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportToTxt</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">Director</span> <span class="o">*</span><span class="n">director</span> <span class="o">=</span> <span class="p">[</span><span class="n">Director</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="n">director</span><span class="p">.</span><span class="n">builder</span> <span class="o">=</span> <span class="n">exportTxt</span><span class="p">;</span>
+	<span class="p">[</span><span class="n">director</span> <span class="nf">constructWithHeader</span><span class="p">:</span><span class="n">header</span> <span class="nf">content</span><span class="p">:</span><span class="n">content</span> <span class="n">footer</span><span class="o">:</span><span class="n">footer</span><span class="p">];</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"%@"</span><span class="p">,</span> <span class="n">exportTxt</span><span class="p">.</span><span class="n">getResult</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Builder模式的优势就是，对于同一个构建过程，只要配置不同的生成器实现，就会生成不同表现的对象。</p>
+
+<h2 id="builder模式的实现">Builder模式的实现</h2>
+<p>使用Builder模式的时候，可以让客户端去创造Director，在Director里面封装整体构造算法，然后让Director调用Builder，让Builder封装具体部件的构建过程。还有一种退化的情况，就是让客户端和Director融合起来，让客户端直接去操作Builder，让客户端充当Director。</p>
+
+<h3 id="builder的实现">Builder的实现</h3>
+<p>实际上在Builder接口的实现中，每个部件构建的方法里面，除了部件装配外，也可以实现如何具体的创建各个部件的对象。也就是说每个方法可以有两个部分，一部分创建部件对象，一部分组装部件。在构建部件的方法里面可以选择并创建具体的部件对象，然后再把这个部件对象组装到产品中去。这样一来Builder就可以和工厂方法配合使用了。再进一步，如果生成器只有创建对象对象的功能，没有组装的功能，那么这个时候就和抽象工厂类似了。</p>
+
+<h3 id="director的实现">Director的实现</h3>
+<p>在Builder模式里面，Director承担的是整体构建算法部分，是相对不变的部分，因此在实现Director时，把变化的部分分离出去很重要。其实知道这分离出去变化的部分就到了生成器那里了，Director指导整体的构建算法，却不知道如何具体地创建和装配部件对象。因此真正Director的实现并不仅仅像示例代码那样，简单的按照一定的顺序调用生成器的方法来生成对象，应该是有较为复杂的算法和运算过程，在运算过程中根据需要，才会调用生成器的方法来生成部件对象。</p>
+
+<h3 id="director和builder的交互">Director和Builder的交互</h3>
+<p>在前面示例代码中，Director和生成器之间的交互是Director调用生成器的方法来完成的，在实际开发过程中这远远不够。Director通常会实现比较复杂的算法或者是运算过程，在实际中很可能会有一下情形：</p>
+<ol>
+  <li>在Director执行的时候，会按照整体的构建算法步骤进行运行，可能先运行前几步运算，到了某一个步骤，需要具体创建某个部件对象了，然后调用生成器中创建相应部件的方法来创建具体部件。同时把前面运算得到的数据传递给生成器，因为生成器在内部创建和组装部件的时候可能会用到这些数据。</li>
+  <li>生成器创建完具体部件对象后，会把创建好的部件对象返回给Director，Director继续后续的算法，可能会用到已经创建好的对象。</li>
+  <li>如此反复下去，知道整个构建算法完成，那么最终的产品也就创建好了。</li>
+</ol>
+
+<h3 id="返回装配好的产品的方法">返回装配好的产品的方法</h3>
+<p>通过上面描述可以看出，Director和生成器交互的方式是通过生成器的参数和返回值来回的传递数据。事实上，Director是通过委托的方式把功能交给生成器去完成。</p>
+
+<p>标准的Builder模式，生成器实现里面会提供一个返回装配好产品的方法，在Builder接口里面是没有的。这是因为最终的对象一定要通过部件构建和装配，才算真正的创建了，而具体干活的就是生成器实现，虽然Director参数了，但是Director不负责具体的创建和组装，所以客户端是从Builder的实现里面获取最终装配好的产品。当然也可以把这个方法添加到Builder接口里面。</p>
+
+<h3 id="关于被构建产品的抽象接口">关于被构建产品的抽象接口</h3>
+<p>在使用Builder模式时，大多数情况不知道创建出来的产品是什么样子的，所以一般不提供产品的抽象接口。</p>
+
+<h2 id="思考builder模式">思考Builder模式</h2>
+<p>Builder模式的本质就是<strong>分离整体构建算法和部件构造</strong>。构建一个复杂对象，本来就有构建过程以及构建过程中具体的实现。Builder模式就是分离这两部分，从而使得程序结构更松散，扩展更容易，复用性更好。同时也使得代码更加清晰，意图更加明确。</p>
+
+<p>虽然Builder模式的整体构建算法会一步步引导生成器构建对象，但这并不是说Builder模式主要就是用来实现分步构建对象的。Builder模式的中心还是在于分离整体构建算法和部件构造，而分步骤构建对象不过时整体构建算法中的一个表现。就像做菜一样，其实菜就是最后的产品，菜谱就是Director，厨师就是Builder，当然菜谱不能指挥厨师，但是厨师已经把菜谱记住了，所以相当于厨师记住的菜谱指挥厨师。哈哈有点牵强。</p>
+
+	  ]]></description>
+	</item>
+
+	<item>
+	  <title>工厂模式</title>
+	  <link>//%E5%B7%A5%E5%8E%82%E6%A8%A1%E5%BC%8F</link>
+	  <author>Freelf</author>
+	  <pubDate>2019-07-29T11:16:52+00:00</pubDate>
+	  <guid>//%E5%B7%A5%E5%8E%82%E6%A8%A1%E5%BC%8F</guid>
+	  <description><![CDATA[
+	     <p>最近重新学习设计模式，以前一直看的是Raywenderlich的书籍，总感觉不够深入。最近重新找了一本书来学习，所以以前的系列就不再继续写了，重新开始记录。这是第一篇，来学习一下工厂模式。
+设计模式名字中带工厂的有三个。简单工厂，工厂方法，抽象工厂。本文就看一下这三种工厂的区别，以及从简单工厂到抽象工厂的演进。</p>
+<h2 id="简单工厂">简单工厂</h2>
+<p>严格来讲简单工厂并不是一个标准的设计模式，但是它太常用了，所以需要我们好好掌握它。</p>
+
+<p>在讲简单工厂前，我们先来讲一下接口(在iOS中叫做协议)。以前看任何有关设计的书时，总是会提到面向接口编程这个概念。那么接口是什么呢？接口有什么用？如何使用接口呢？下面我们先来搞明白这些问题再去学习简单工厂。
+那么接口是什么呢？总的来说接口就是对一组实现的抽象，描述一个实现对象应有的一些功能。</p>
+
+<p>至于接口有什么用呢？根据接口的定义，我们可以看出来，接口就是来定义实现的外观。用来约束实现类的行为，接口相当于一份契约，根据外部应用需要的功能，约定了实现类要实现的功能。但是具体的实现类除了实现接口定义的功能也可以实现一些其他的功能。</p>
+
+<p>那么如何使用接口呢？接口的作用和用途浓缩下来就一句话，<strong>封装隔离</strong>。以前通常提到的封装是对数据的封装。我们这里的封装指的是对实现对象的行为和职责的封装。隔离是指外部调用和内部实现，外部调用只能通过接口调用，外部调用是不知道内部实现的，也就是说外部调用和内部实现是被接口隔离开的。</p>
+
+<p>使用接口的好处就是只要接口不变，内部的实现无论如何变化，外部调用都不会改变。从而使得系统更加灵活，具有更好的可扩展性和可维护性。所以设计的书中一直强调面向接口编程。</p>
+<h3 id="场景问题">场景问题</h3>
+<p>接口的概念回忆完了，我们来看一下平常我们是如何使用接口的。假设有一个接口名字叫做<code class="highlighter-rouge">Api</code>,然后有一个实现类<code class="highlighter-rouge">Imp</code>实现了它，在客户端如何使用这个接口呢？通常情况下我们都会在客户端创建一个<code class="highlighter-rouge">Imp</code>对象，然后把它赋值给一个<code class="highlighter-rouge">Api</code>接口类型的变量。我们用代码来表示一下，因为我自己是一个iOS开发，所以代码使用Objective-C来体现：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Api
+</span><span class="k">@protocol</span> <span class="nc">Api</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">doSomething</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="c1">// Imp
+</span><span class="k">@interface</span> <span class="nc">Imp</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">Api</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">Imp</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">doSomething</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"doSomething"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">@end</span>
+
+<span class="c1">// 使用接口
+</span><span class="kt">int</span> <span class="n">main</span> <span class="p">()</span> <span class="p">{</span>
+	<span class="n">id</span><span class="o">&lt;</span><span class="n">Api</span><span class="o">&gt;</span> <span class="n">api</span> <span class="o">=</span> <span class="p">[</span><span class="n">Imp</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">api</span> <span class="nf">doSomething</span><span class="p">];</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>上面代码有什么问题呢？我们发现在使用接口的时候，我们既知道了<code class="highlighter-rouge">Api</code>又知道了<code class="highlighter-rouge">Imp</code>。接口的作用不是为了隔离外部调用和内部实现么，这里并没有隔离。为了隔离调用和实现，我们可以使用简单工厂来解决。</p>
+<h3 id="简单工厂的使用">简单工厂的使用</h3>
+<blockquote>
+  <p>提供一个创建对象实例的功能，而无需关心其具体实现。</p>
+</blockquote>
+
+<p>我们可以通过提供一个创建对象实例的类给客户端，让客户端通过这个类来获取实例。减少了客户端和具体实现的依赖。下面我们通过代码来看一下通过简单工厂是如何解决问题的：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Api
+</span><span class="k">@protocol</span> <span class="nc">Api</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">doSomething</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="c1">// ImpA
+</span><span class="k">@interface</span> <span class="nc">ImpA</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">Api</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">ImpA</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">doSomething</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"ImpA doSomething"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">@end</span>
+
+<span class="c1">// ImpB
+</span><span class="k">@interface</span> <span class="nc">ImpB</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">Api</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">ImpB</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">doSomething</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"ImpB doSomething"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">@end</span>
+
+<span class="c1">// Factory
+</span><span class="k">@interface</span> <span class="nc">Factory</span> <span class="p">:</span> <span class="nc">NSObject</span>
+
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">Factory</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">Api</span><span class="o">&gt;</span><span class="p">)</span><span class="nf">createImpWithCondition</span><span class="p">:(</span><span class="n">Int</span><span class="p">)</span><span class="nv">condition</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">condition</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">ImpA</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">condition</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">ImpB</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 使用接口
+</span><span class="kt">int</span> <span class="n">main</span> <span class="p">()</span> <span class="p">{</span>
+	<span class="n">id</span><span class="o">&lt;</span><span class="n">Api</span><span class="o">&gt;</span> <span class="n">api</span> <span class="o">=</span> <span class="p">[</span><span class="n">Facotry</span> <span class="nf">createImpWithCondition</span><span class="p">:</span><span class="mi">1</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">api</span> <span class="nf">doSomething</span><span class="p">];</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<h3 id="存在的问题">存在的问题</h3>
+<p>如果在上述例子中，我们再添加一种实现，需要改动<code class="highlighter-rouge">Factory</code>的实现。每次添加一个新的实现都需要去修改工厂类，这显然不是一个好的实现方式。那么该怎么办呢。我们可以利用反射去实现，这里我们需要一个配置文件，Objective-C中最简单的配置文件就是plist，我们可以创建一个plist去配置实现类，然后再创建实现时去读plist中的配置，利用<code class="highlighter-rouge">NSClassFormString</code>方法获取<code class="highlighter-rouge">Class</code>，然后创建具体的实现类。以后添加新的实现时，我们只需要修改plist文件即可。</p>
+<h3 id="思考简单工厂">思考简单工厂</h3>
+<p>简单工厂的本质就是<strong>选择实现</strong>，重点在于选择，实现是提前写好的，就算是再简单的实现也要在实现类里面实现，不能在工厂类里面实现。简单工厂的目的在于为客户端选择实现，从而使客户端和实现解耦，如果具体实现发生了变化就不用变动客户端了，变化会被简单工厂吸收和屏蔽掉。可以看到简单工厂主要就是为了减少依赖，具体逻辑由具体类负责。</p>
+<h2 id="工厂方法">工厂方法</h2>
+<p>考虑这样一个实际应用，我们要实现一个导出数据的应用框架，让客户端选择数据的导出方式，然后导出数据。导出数据可能是文本格式，可能是数据库格式，也可能是PDF格式。</p>
+<h3 id="场景问题-1">场景问题</h3>
+<p>分析上面的实现，不管用户选择什么样的导出方式，最后导出的都是一个文件，因此应该有一个接口来描述导出文件对象的功能。我们把这个接口名叫做<code class="highlighter-rouge">ExportFileApi</code>，对于实现导出数据业务的功能对象，我们把它叫做<code class="highlighter-rouge">ExportOperate</code>。他应该根据需要来创建对应的<code class="highlighter-rouge">ExportFileApi</code>实现对象，但是<code class="highlighter-rouge">ExportOperate</code>并不知道应该创建哪一个<code class="highlighter-rouge">ExportFileApi</code>，也不知道如何创建<code class="highlighter-rouge">ExportFileApi</code>，因为<code class="highlighter-rouge">ExportOperate</code>只知道<code class="highlighter-rouge">ExportFileApi</code>这个接口，并不知道具体实现对象。</p>
+<h3 id="使用工厂方法解决问题">使用工厂方法解决问题</h3>
+<blockquote>
+  <p>定义一个用于创建对象的接口，让子类决定实例化哪一个类，工厂方法使一个类的实例化延迟到子类。</p>
+</blockquote>
+
+<p>下面我们看一下使用具体代码如何解决上面这个问题的。我们先定义一下<code class="highlighter-rouge">ExportFileApi</code>这个接口：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@protocol</span> <span class="nc">ExportFileApi</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+
+<span class="cm">/**
+ 导出数据到文件
+
+ @param data 被导出的数据
+ @return 是否导出成功
+ */</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">BOOL</span><span class="p">)</span><span class="n">exportFileWithData</span><span class="o">:</span><span class="p">(</span><span class="n">NSData</span><span class="o">*</span><span class="p">)</span><span class="n">data</span><span class="p">;</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>我们先提供导出两种文件，分别是文本格式和数据库格式：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 导出为文本的实现类
+</span><span class="k">@interface</span> <span class="nc">ExportTxt</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">ExportTxt</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="n">BOOL</span><span class="p">)</span><span class="nf">exportFileWithData</span><span class="p">:(</span><span class="n">NSData</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"导出为文本"</span><span class="p">);</span>
+	<span class="k">return</span> <span class="nb">YES</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">//导出为DB的实现类
+</span><span class="k">@interface</span> <span class="nc">ExportDB</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">ExportDB</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">BOOL</span><span class="p">)</span><span class="nf">exportFileWithData</span><span class="p">:(</span><span class="n">NSData</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"导出为DB"</span><span class="p">);</span>
+	<span class="k">return</span> <span class="nb">YES</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+
+<p>具体导出数据业务的功能对象<code class="highlighter-rouge">ExportOperate</code>示例代码如下：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">ExportOperate</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">BOOL</span><span class="p">)</span><span class="nf">exportFileWithData</span><span class="p">:(</span><span class="n">NSData</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span><span class="p">;</span>
+<span class="cm">/**
+ 创建导出文件的具体实现
+
+ @return 导出文件的具体实现
+ */</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">factoryMethod</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">ExportOperate</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="n">BOOL</span><span class="p">)</span><span class="nf">exportFileWithData</span><span class="p">:(</span><span class="n">NSData</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span> <span class="p">{</span>
+	<span class="n">id</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span> <span class="n">api</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span> <span class="nf">factoryMethod</span><span class="p">];</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">api</span> <span class="nf">exportFileWithData</span><span class="p">:</span><span class="n">data</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">factoryMethod</span> <span class="p">{</span>
+	<span class="p">[</span><span class="n">NSException</span> <span class="nf">exceptionWithName</span><span class="p">:</span><span class="s">@"抽象方法不能直接调用"</span> <span class="nf">reason</span><span class="p">:</span><span class="s">@"必须子类重写"</span> <span class="n">userInfo</span><span class="o">:</span><span class="nb">nil</span><span class="p">];</span>
+	<span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>下面我们加入两个导出操作，一个是导出文本文档的操作，一个是导出数据库的操作。</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 导出文本文档的操作
+</span><span class="k">@interface</span> <span class="nc">ExportTxtOperate</span> <span class="p">:</span> <span class="nc">ExportOperate</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">ExportTxtOperate</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">factoryMethod</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">ExportTxt</span> <span class="nf">new</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+<span class="c1">// 导出DB的操作
+</span><span class="k">@interface</span> <span class="nc">ExportDBOperate</span> <span class="p">:</span> <span class="nc">ExportOperate</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">ExportDBOperate</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">factoryMethod</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">ExportDB</span> <span class="nf">new</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>客户端代码示例代码：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">ExportOperate</span> <span class="o">*</span><span class="n">dbOperate</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportDBOperate</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">dbOperate</span> <span class="nf">exportFileWithData</span><span class="p">:[</span><span class="n">NSData</span> <span class="nf">data</span><span class="p">]];</span>
+	<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>还可以修改客户端new的对象，切换成其他的实现对象。此时如果增加新的导出类型的话，只需要继承<code class="highlighter-rouge">ExportOperate</code>再次重写工厂方法就好了。也可以参数化工厂方法，在父类里面提供默认实现。这里简单写一下：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">ExportOperate</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">BOOL</span><span class="p">)</span><span class="nf">exportFileWithData</span><span class="p">:(</span><span class="n">NSData</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span> <span class="nf">dataType</span><span class="p">:(</span><span class="n">NSInteger</span><span class="p">)</span><span class="nv">type</span><span class="p">;</span>
+<span class="cm">/**
+ 创建导出文件的具体实现
+
+ @return 导出文件的具体实现
+ */</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nf">factoryMethodWithType</span><span class="p">:(</span><span class="n">NSInteger</span><span class="p">)</span><span class="nv">type</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">ExportOperate</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="n">BOOL</span><span class="p">)</span><span class="nf">exportFileWithData</span><span class="p">:(</span><span class="n">NSData</span> <span class="o">*</span><span class="p">)</span><span class="nv">data</span> <span class="nf">dataType</span><span class="p">:(</span><span class="n">NSInteger</span><span class="p">)</span><span class="nv">type</span> <span class="p">{</span>
+	<span class="n">id</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span> <span class="n">api</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span> <span class="nf">factoryMethodWithType</span><span class="p">:</span><span class="n">type</span><span class="p">];</span>
+	<span class="k">return</span> <span class="p">[</span><span class="n">api</span> <span class="nf">exportFileWithData</span><span class="p">:</span><span class="n">data</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nf">factoryMethodWithType</span><span class="p">:(</span><span class="n">NSInteger</span><span class="p">)</span><span class="nv">type</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">ExportTxt</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">ExportDB</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>客户端代码：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">ExportOperate</span> <span class="o">*</span><span class="n">dbOperate</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportOperate</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">dbOperate</span> <span class="nf">exportFileWithData</span><span class="p">:[</span><span class="n">NSData</span> <span class="nf">data</span><span class="p">]</span> <span class="nf">dataType</span><span class="p">:</span><span class="mi">1</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">dbOperate</span> <span class="nf">exportFileWithData</span><span class="p">:[</span><span class="n">NSData</span> <span class="nf">data</span><span class="p">]</span> <span class="nf">dataType</span><span class="p">:</span><span class="mi">2</span><span class="p">];</span>
+	<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>如果这时增加导出PDF的操作，只需要继承<code class="highlighter-rouge">ExportOperate</code>就可以：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">ExportPDFOperate</span> <span class="p">:</span> <span class="nc">ExportOperate</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">ExportPDFOperate</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">ExportFileApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nf">factoryMethodWithType</span><span class="p">:(</span><span class="n">NSInteger</span><span class="p">)</span><span class="nv">type</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">3</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">ExportPDF</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+	   <span class="k">return</span> <span class="p">[</span><span class="n">super</span> <span class="nf">factoryMethodWithType</span><span class="p">:</span><span class="n">type</span><span class="p">];</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+</code></pre></div></div>
+<p>客户端代码不用变化：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">ExportOperate</span> <span class="o">*</span><span class="n">dbOperate</span> <span class="o">=</span> <span class="p">[</span><span class="n">ExportOperate</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">dbOperate</span> <span class="nf">exportFileWithData</span><span class="p">:[</span><span class="n">NSData</span> <span class="nf">data</span><span class="p">]</span> <span class="nf">dataType</span><span class="p">:</span><span class="mi">1</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">dbOperate</span> <span class="nf">exportFileWithData</span><span class="p">:[</span><span class="n">NSData</span> <span class="nf">data</span><span class="p">]</span> <span class="nf">dataType</span><span class="p">:</span><span class="mi">2</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">dbOperate</span> <span class="nf">exportFileWithData</span><span class="p">:[</span><span class="n">NSData</span> <span class="nf">data</span><span class="p">]</span> <span class="nf">dataType</span><span class="p">:</span><span class="mi">3</span><span class="p">];</span>
+	<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<h3 id="思考工厂方法">思考工厂方法</h3>
+<p>工厂方法的本质是<strong>延迟到子类来选择实现</strong>，它和简单工厂非常类似，都是选择实现，但是也存在不同点。简单工厂是在工厂里面直接选择实现，而工厂方法会把这个工作延迟到子类去实现，工厂类里面使用工厂方法的地方是依赖于具体实现的接口，这样使代码更加灵活，具有更好的可扩展性和可维护性。如果把工厂类退化一下，只提供工厂方法，而且工厂方法提供默认实现，就变成简单工厂了。可以认为简单工厂就是工厂方法的一种特例，因为它们本质是类似的，都是选择实现。</p>
+<h2 id="抽象工厂">抽象工厂</h2>
+<p>考虑一个生活中常见的例子——组装电脑，我们组装电脑时经常需要选择一些配件。其中主要的配件包括CPU，主板，内存等。为了简单点，我们只考虑CPU和主板。我们都知道CPU和主板需要配置好，不然会有不兼容的问题。对于装机工程师而言，他只知道要组装一台电脑，需要响应的配件，但是具体使用什么样的配件，需要客户说了算。现在我们来实现一下这个程序。</p>
+<h3 id="场景问题-2">场景问题</h3>
+<p>对于装机工程师而言，只要知道CPU和主板的接口，不知道具体实现，很明显可以用上简单工厂和工厂模式，为了简单，我们这里选择简单工厂。客户告诉装机工程师自己的选择，然后装机工程师会通过相应的工厂去获取相应的实例对象。示例代码如下：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// CPU接口
+</span><span class="k">@protocol</span> <span class="nc">CPUApi</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">calculate</span><span class="p">;</span>
+
+<span class="k">@end</span>
+
+<span class="c1">// 主板接口
+</span><span class="k">@protocol</span> <span class="nc">MainBoardApi</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">installCPU</span><span class="p">;</span>
+
+<span class="k">@end</span>
+
+<span class="c1">// Intel的CPU实现
+</span><span class="k">@interface</span> <span class="nc">IntelCPU</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="n">initWithPins</span><span class="o">:</span><span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">pins</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@interface</span> <span class="nc">IntelCPU</span> <span class="p">()</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">assign</span><span class="p">)</span> <span class="n">NSUInteger</span> <span class="n">pins</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">IntelCPU</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="nf">initWithPins</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">pins</span> <span class="p">{</span>
+	<span class="n">self</span> <span class="o">=</span> <span class="p">[</span><span class="n">super</span> <span class="nf">init</span><span class="p">];</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">self</span><span class="p">)</span> <span class="p">{</span>
+		<span class="n">self</span><span class="p">.</span><span class="n">pins</span> <span class="o">=</span> <span class="n">pins</span><span class="p">;</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="n">self</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">calculate</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"IntelCPU pins = %zd"</span><span class="p">,</span> <span class="n">self</span><span class="p">.</span><span class="n">pins</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// AMD的CPU实现
+</span><span class="k">@interface</span> <span class="nc">AMDCPU</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="n">initWithPins</span><span class="o">:</span><span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">pins</span><span class="p">;</span>
+<span class="k">@end</span>
+<span class="k">@interface</span> <span class="nc">AMDCPU</span> <span class="p">()</span>
+
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">assign</span><span class="p">)</span> <span class="n">NSUInteger</span> <span class="n">pins</span><span class="p">;</span>
+
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">AMDCPU</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="nf">initWithPins</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">pins</span> <span class="p">{</span>
+	<span class="n">self</span> <span class="o">=</span> <span class="p">[</span><span class="n">super</span> <span class="nf">init</span><span class="p">];</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">self</span><span class="p">)</span> <span class="p">{</span>
+		<span class="n">self</span><span class="p">.</span><span class="n">pins</span> <span class="o">=</span> <span class="n">pins</span><span class="p">;</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="n">self</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">calculate</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"AMDCPU pins = %zd"</span><span class="p">,</span> <span class="n">self</span><span class="p">.</span><span class="n">pins</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 技嘉主板实现
+</span><span class="k">@interface</span> <span class="nc">GAMainBoard</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="n">initWithCpuHoles</span><span class="o">:</span><span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">holes</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@interface</span> <span class="nc">GAMainBoard</span> <span class="p">()</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">assign</span><span class="p">)</span> <span class="n">NSUInteger</span> <span class="n">cpuHoles</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">GAMainBoard</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="nf">initWithCpuHoles</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">holes</span> <span class="p">{</span>
+	<span class="n">self</span> <span class="o">=</span> <span class="p">[</span><span class="n">super</span> <span class="nf">init</span><span class="p">];</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">self</span><span class="p">)</span> <span class="p">{</span>
+		<span class="n">self</span><span class="p">.</span><span class="n">cpuHoles</span> <span class="o">=</span> <span class="n">holes</span><span class="p">;</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="n">self</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">installCPU</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"GAMainBoard cpuHoles = %zd"</span><span class="p">,</span> <span class="n">self</span><span class="p">.</span><span class="n">cpuHoles</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 微星主板实现
+</span><span class="k">@interface</span> <span class="nc">MSIMainBoard</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="n">initWithCpuHoles</span><span class="o">:</span><span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">holes</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@interface</span> <span class="nc">MSIMainBoard</span> <span class="p">()</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">assign</span><span class="p">)</span> <span class="n">NSUInteger</span> <span class="n">cpuHoles</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">MSIMainBoard</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">instancetype</span><span class="p">)</span><span class="nf">initWithCpuHoles</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">holes</span> <span class="p">{</span>
+	<span class="n">self</span> <span class="o">=</span> <span class="p">[</span><span class="n">super</span> <span class="nf">init</span><span class="p">];</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">self</span><span class="p">)</span> <span class="p">{</span>
+		<span class="n">self</span><span class="p">.</span><span class="n">cpuHoles</span> <span class="o">=</span> <span class="n">holes</span><span class="p">;</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="n">self</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">installCPU</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"MSIMainBoard cpuHoles = %zd"</span><span class="p">,</span> <span class="n">self</span><span class="p">.</span><span class="n">cpuHoles</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// CPU工厂实现
+</span><span class="k">@interface</span> <span class="nc">CPUFactory</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">+</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nf">createCpuWithType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">type</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">CPUFactory</span>
+<span class="k">+</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nf">createCpuWithType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">type</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">IntelCPU</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithPins</span><span class="p">:</span><span class="mi">1156</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">AMDCPU</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithPins</span><span class="p">:</span><span class="mi">939</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 主板工厂实现
+</span><span class="k">@interface</span> <span class="nc">MainBoardFactory</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">+</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nf">createMainBoardWithType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">type</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">MainBoardFactory</span>
+<span class="k">+</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span><span class="p">)</span><span class="nf">createMainBoardWithType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">type</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">GAMainBoard</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithCpuHoles</span><span class="p">:</span><span class="mi">1156</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">MSIMainBoard</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithCpuHoles</span><span class="p">:</span><span class="mi">939</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 装机工程师的实现
+</span><span class="k">@interface</span> <span class="nc">ComputerEngineer</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">makeComputerWithCpuType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">cpuType</span> <span class="nf">mainBoardType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">mainBoardType</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@interface</span> <span class="nc">ComputerEngineer</span> <span class="p">()</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span> <span class="n">cpu</span><span class="p">;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span> <span class="n">mainBoard</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">ComputerEngineer</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">makeComputerWithCpuType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">cpuType</span> <span class="nf">mainBoardType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">mainBoardType</span> <span class="p">{</span>
+	<span class="c1">// 准备硬件
+</span>	<span class="p">[</span><span class="n">self</span> <span class="nf">prepareHardwaresWithCpuType</span><span class="p">:</span><span class="n">cpuType</span> <span class="nf">mainBoardType</span><span class="p">:</span><span class="n">mainBoardType</span><span class="p">];</span>
+	<span class="c1">// 组装机器
+</span>	<span class="c1">// 测试机器
+</span><span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">prepareHardwaresWithCpuType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">cpuType</span> <span class="nf">mainBoardType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">mainBoardType</span> <span class="p">{</span>
+	<span class="n">self</span><span class="p">.</span><span class="n">cpu</span> <span class="o">=</span> <span class="p">[</span><span class="n">CPUFactory</span> <span class="nf">createCpuWithType</span><span class="p">:</span><span class="n">cpuType</span><span class="p">];</span>
+	<span class="n">self</span><span class="p">.</span><span class="n">mainBoard</span> <span class="o">=</span> <span class="p">[</span><span class="n">MainBoardFactory</span> <span class="nf">createMainBoardWithType</span><span class="p">:</span><span class="n">mainBoardType</span><span class="p">];</span>
+	
+	<span class="c1">// 测试是否好用
+</span>	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">cpu</span> <span class="nf">calculate</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">mainBoard</span> <span class="nf">installCPU</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 测试
+</span><span class="kt">int</span> <span class="n">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">ComputerEngineer</span> <span class="o">*</span><span class="n">engineer</span> <span class="o">=</span> <span class="p">[</span><span class="n">ComputerEngineer</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">engineer</span> <span class="nf">makeComputerWithCpuType</span><span class="p">:</span><span class="mi">1</span> <span class="nf">mainBoardType</span><span class="p">:</span><span class="mi">1</span><span class="p">];</span>
+<span class="p">}</span>
+
+<span class="c1">// 运行结果如下
+</span><span class="n">IntelCPU</span> <span class="n">pins</span> <span class="o">=</span> <span class="mi">1156</span>
+<span class="n">GAMainBoard</span> <span class="n">cpuHoles</span> <span class="o">=</span> <span class="mi">1156</span>
+</code></pre></div></div>
+<p>看了上面的实现，会感觉很简单。但是有一个问题，就是CPU和主板对象必须兼容，比容上面例子中我们传入CPU的类型是1，主板类型是2，就会出现不匹配的情况。</p>
+<h3 id="抽象工厂的使用">抽象工厂的使用</h3>
+<p>我们可以使用抽象工厂来解决上面的问题。</p>
+<blockquote>
+  <p>提供一个创建一系列相关或相互依赖对象的接口，而无需指定它们具体的类。</p>
+</blockquote>
+
+<p>分析上面的问题，其实用两个问题点，一个是只知道所需要的一系列对象的接口，而不知道具体实现；另外一个是这一系列对象是相关或者相互依赖的。也就是说既要创建接口的对象，还要约束他们之间的关系。工厂方法和简单工厂关注的是单个产品对象的创建，抽象工厂专注的是一系列产品的创建。
+下面我们使用抽象工厂来优化上面的例子：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 抽象工厂
+</span><span class="k">@protocol</span> <span class="nc">AbstractFactory</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">createCpu</span><span class="p">;</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">createMainboard</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="c1">// 具体工厂1
+</span><span class="k">@interface</span> <span class="nc">SchemaOne</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">SchemaOne</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">createCpu</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[[</span><span class="n">IntelCPU</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithPins</span><span class="p">:</span><span class="mi">1136</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">createMainboard</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[[</span><span class="n">GAMainBoard</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithCpuHoles</span><span class="p">:</span><span class="mi">1136</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 具体工厂2
+</span><span class="k">@interface</span> <span class="nc">SchemaTwo</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">SchemaTwo</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">createCpu</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[[</span><span class="n">AMDCPU</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithPins</span><span class="p">:</span><span class="mi">939</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span><span class="p">)</span><span class="n">createMainboard</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="p">[[</span><span class="n">MSIMainBoard</span> <span class="nf">alloc</span><span class="p">]</span> <span class="nf">initWithCpuHoles</span><span class="p">:</span><span class="mi">939</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 装机工程师的实现
+</span><span class="k">@interface</span> <span class="nc">ComputerEngineer</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">makeComputerWithSchema</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">schema</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@interface</span> <span class="nc">ComputerEngineer</span> <span class="p">()</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span> <span class="n">cpu</span><span class="p">;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span> <span class="n">mainBoard</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">ComputerEngineer</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">makeComputerWithSchema</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">schema</span> <span class="p">{</span>
+	<span class="c1">// 准备硬件
+</span>	<span class="p">[</span><span class="n">self</span> <span class="nf">prepareHardwaresWithSchema</span><span class="p">:</span><span class="n">schema</span><span class="p">];</span>
+	<span class="c1">// 组装机器
+</span>	<span class="c1">// 测试机器
+</span><span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">prepareHardwaresWithSchema</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">schema</span> <span class="p">{</span>
+	<span class="n">self</span><span class="p">.</span><span class="n">cpu</span> <span class="o">=</span> <span class="p">[</span><span class="n">schema</span> <span class="nf">createCpu</span><span class="p">];</span>
+	<span class="n">self</span><span class="p">.</span><span class="n">mainBoard</span> <span class="o">=</span> <span class="p">[</span><span class="n">schema</span> <span class="nf">createMainboard</span><span class="p">];</span>
+	
+	<span class="c1">// 测试是否好用
+</span>	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">cpu</span> <span class="nf">calculate</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">mainBoard</span> <span class="nf">installCPU</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 测试
+</span><span class="kt">int</span> <span class="n">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">ComputerEngineer</span> <span class="o">*</span><span class="n">engineer</span> <span class="o">=</span> <span class="p">[</span><span class="n">ComputerEngineer</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">engineer</span> <span class="nf">makeComputerWithSchema</span><span class="p">:[</span><span class="n">SchemaTwo</span> <span class="nf">new</span><span class="p">]];</span>
+<span class="p">}</span>
+
+</code></pre></div></div>
+<h3 id="定义可扩展的工厂">定义可扩展的工厂</h3>
+<p>抽象工厂为每一种它能创建的产品对象定义了相应的方法，如果在产品簇中要新加一种产品，比如现在我们要加一个内存，那就需要在抽象工厂中添加创建内存的一个方法。当抽象工厂一发生变化，所有的具体工厂实现都要发成变化。
+现在有一种相对灵活，但不太安全的改进方式可以解决问题：抽象工厂里面不需要定义那么多方法，定义一个方法，给这个方法设置一个参数，通过这个参数来判断具体创建什么产品对象。由于只有一个方法，在返回类型上就不能是具体某个产品类型了，只能是所有的产品对象都继承或者实现的这么一个类型，在Objective-C里面干脆就使用NSObject类型。示例代码如下：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 抽象工厂的接口
+</span><span class="k">@protocol</span> <span class="nc">AbstractFactory</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="n">NSObject</span> <span class="o">*</span><span class="p">)</span><span class="n">createProductWithType</span><span class="o">:</span><span class="p">(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="n">type</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="c1">// 具体工厂1
+</span><span class="k">@interface</span> <span class="nc">SchemaOne</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">SchemaOne</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">NSObject</span> <span class="o">*</span><span class="p">)</span><span class="nf">createProductWithType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">type</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">IntelCPU</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithPins</span><span class="p">:</span><span class="mi">1386</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">GAMainBoard</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithCpuHoles</span><span class="p">:</span><span class="mi">1386</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 具体工厂2
+</span><span class="k">@interface</span> <span class="nc">SchemaTwo</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">SchemaTwo</span>
+<span class="k">-</span> <span class="p">(</span><span class="n">NSObject</span> <span class="o">*</span><span class="p">)</span><span class="nf">createProductWithType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">type</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">AMDCPU</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithPins</span><span class="p">:</span><span class="mi">1386</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">MSIMainBoard</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithCpuHoles</span><span class="p">:</span><span class="mi">1386</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 装机工程师的实现
+</span><span class="k">@interface</span> <span class="nc">ComputerEngineer</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">makeComputerWithSchema</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">schema</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@interface</span> <span class="nc">ComputerEngineer</span> <span class="p">()</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span> <span class="n">cpu</span><span class="p">;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span> <span class="n">mainBoard</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">ComputerEngineer</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">makeComputerWithSchema</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">schema</span> <span class="p">{</span>
+	<span class="c1">// 准备硬件
+</span>	<span class="p">[</span><span class="n">self</span> <span class="nf">prepareHardwaresWithSchema</span><span class="p">:</span><span class="n">schema</span><span class="p">];</span>
+	<span class="c1">// 组装机器
+</span>	<span class="c1">// 测试机器
+</span><span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">prepareHardwaresWithSchema</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">schema</span> <span class="p">{</span>
+	<span class="c1">// 这里需要强转类型，不安全
+</span>	<span class="n">self</span><span class="p">.</span><span class="n">cpu</span> <span class="o">=</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span><span class="p">)[</span><span class="n">schema</span> <span class="nf">createProductWithType</span><span class="p">:</span><span class="mi">1</span><span class="p">];</span>
+	<span class="n">self</span><span class="p">.</span><span class="n">mainBoard</span> <span class="o">=</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span><span class="p">)[</span><span class="n">schema</span> <span class="nf">createProductWithType</span><span class="p">:</span><span class="mi">2</span><span class="p">];</span>
+	
+	<span class="c1">// 测试是否好用
+</span>	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">cpu</span> <span class="nf">calculate</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">mainBoard</span> <span class="nf">installCPU</span><span class="p">];</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 测试
+</span><span class="kt">int</span> <span class="n">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">ComputerEngineer</span> <span class="o">*</span><span class="n">engineer</span> <span class="o">=</span> <span class="p">[</span><span class="n">ComputerEngineer</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">engineer</span> <span class="nf">makeComputerWithSchema</span><span class="p">:[</span><span class="n">SchemaTwo</span> <span class="nf">new</span><span class="p">]];</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>上面强转类型，如果返回的不是CPU，强制转换成CPU就会发生错误，不安全。下面体验一下这种方式的灵活性，比如我们加内存，我们可以提供一个新的SchemaThree来使用它：</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 定义内存接口
+</span><span class="k">@protocol</span> <span class="nc">MemoryApi</span> <span class="o">&lt;</span><span class="n">NSObject</span><span class="o">&gt;</span>
+<span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">cacheData</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="c1">// 内存具体实现
+</span><span class="k">@interface</span> <span class="nc">HyMemory</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">MemoryApi</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">HyMemory</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">cacheData</span> <span class="p">{</span>
+	<span class="n">NSLog</span><span class="p">(</span><span class="s">@"内存充足"</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 包含创建内存的具体工厂
+</span><span class="k">@interface</span> <span class="nc">SchemaThree</span> <span class="p">:</span> <span class="nc">NSObject</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span>
+
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">SchemaThree</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="n">NSObject</span> <span class="o">*</span><span class="p">)</span><span class="nf">createProductWithType</span><span class="p">:(</span><span class="n">NSUInteger</span><span class="p">)</span><span class="nv">type</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">IntelCPU</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithPins</span><span class="p">:</span><span class="mi">1386</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[[</span><span class="n">GAMainBoard</span> <span class="nf">alloc</span><span class="p">]</span><span class="nf">initWithCpuHoles</span><span class="p">:</span><span class="mi">1386</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="mi">3</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">HyMemory</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 装机工程师的实现
+</span><span class="k">@interface</span> <span class="nc">ComputerEngineer</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">makeComputerWithSchema</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">schema</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@interface</span> <span class="nc">ComputerEngineer</span> <span class="p">()</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span> <span class="n">cpu</span><span class="p">;</span>
+<span class="k">@property</span> <span class="p">(</span><span class="n">nonatomic</span><span class="p">,</span> <span class="n">strong</span><span class="p">)</span> <span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span> <span class="n">mainBoard</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">ComputerEngineer</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">makeComputerWithSchema</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">schema</span> <span class="p">{</span>
+	<span class="c1">// 准备硬件
+</span>	<span class="p">[</span><span class="n">self</span> <span class="nf">prepareHardwaresWithSchema</span><span class="p">:</span><span class="n">schema</span><span class="p">];</span>
+	<span class="c1">// 组装机器
+</span>	<span class="c1">// 测试机器
+</span><span class="p">}</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">prepareHardwaresWithSchema</span><span class="p">:(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">AbstractFactory</span><span class="o">&gt;</span><span class="p">)</span><span class="nv">schema</span> <span class="p">{</span>
+	
+	<span class="n">self</span><span class="p">.</span><span class="n">cpu</span> <span class="o">=</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">CPUApi</span><span class="o">&gt;</span><span class="p">)[</span><span class="n">schema</span> <span class="nf">createProductWithType</span><span class="p">:</span><span class="mi">1</span><span class="p">];</span>
+	<span class="n">self</span><span class="p">.</span><span class="n">mainBoard</span> <span class="o">=</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">MainBoardApi</span><span class="o">&gt;</span><span class="p">)[</span><span class="n">schema</span> <span class="nf">createProductWithType</span><span class="p">:</span><span class="mi">2</span><span class="p">];</span>
+	<span class="n">self</span><span class="p">.</span><span class="n">memory</span> <span class="o">=</span> <span class="p">(</span><span class="n">id</span><span class="o">&lt;</span><span class="n">MemoryApi</span><span class="o">&gt;</span><span class="p">)[</span><span class="n">schema</span> <span class="nf">createProductWithType</span><span class="p">:</span><span class="mi">3</span><span class="p">];</span>
+
+	<span class="c1">// 测试是否好用
+</span>	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">cpu</span> <span class="nf">calculate</span><span class="p">];</span>
+	<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">mainBoard</span> <span class="nf">installCPU</span><span class="p">];</span>
+	<span class="c1">// 这里需要加判断，如果不加判断，使用SchemaOne和SchemaTwo时会Crash
+</span>	<span class="k">if</span> <span class="p">(</span><span class="n">self</span><span class="p">.</span><span class="n">memory</span><span class="p">)</span> <span class="p">{</span>
+		<span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">memory</span> <span class="nf">cacheData</span><span class="p">];</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+<span class="k">@end</span>
+
+<span class="c1">// 测试
+</span><span class="kt">int</span> <span class="n">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+	<span class="n">ComputerEngineer</span> <span class="o">*</span><span class="n">engineer</span> <span class="o">=</span> <span class="p">[</span><span class="n">ComputerEngineer</span> <span class="nf">new</span><span class="p">];</span>
+	<span class="c1">// 这里直接使用SchemaThree就好了
+</span>	<span class="p">[</span><span class="n">engineer</span> <span class="nf">makeComputerWithSchema</span><span class="p">:[</span><span class="n">SchemaThree</span> <span class="nf">new</span><span class="p">]];</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>这种方式比较灵活，当然也不太安全，是否使用要看设计上的权衡了。</p>
+<h3 id="思考抽象工厂模式">思考抽象工厂模式</h3>
+<p>抽象工厂模式的本质是<strong>选择产品簇的实现</strong>，工厂方法是选择单个产品实现，虽然一个类里面可以有多个工厂方法，但是这些方法之间一般没有联系，即使看起来像有联系。但是抽象工厂着重的就是为一个产品簇选择实现，定义在抽象工厂里面的方法通常是有联系的，他们都是产品的某一个部分或者是相互依赖的。如果在抽象工厂里面只定义一个方法，直接创建产品，那么就退化成工厂方法了。如果把工厂类退化一下，只提供工厂方法，并且提供默认实现就退化成简单工厂了。</p>
+<h2 id="总结">总结</h2>
+<p>简单工厂：选择实现，减少不必要的依赖，方便代码复用。</p>
+
+<p>工厂方法：父类定框架，子类做实现，把选择实现延迟到子类，符合开闭原则，依赖倒置原则。</p>
+
+<p>抽象工厂：创建产品簇，简化业务逻辑。</p>
+
+	  ]]></description>
+	</item>
+
+
+</channel>
+</rss>

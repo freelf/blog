@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.css">
+        <script src="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js"></script>
+<head>
+    <!-- Document Settings -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- Page Meta -->
+    <title>学习动画系列---理解CALayer</title>
+    <meta name="description" content="Freelf's Blog" />
+
+    <!-- Mobile Meta -->
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Brand icon -->
+    <link rel="shortcut icon" href="/assets/images/favicon.ico" >
+
+    <!-- Styles'n'Scripts -->
+    <link rel="stylesheet" type="text/css" href="/assets/css/screen.css" />
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Merriweather:300,700,700italic,300italic|Open+Sans:700,400" />
+    <link rel="stylesheet" type="text/css" href="/assets/css/syntax.css" />
+
+    <!-- highlight.js -->
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/styles/default.min.css">
+    <style>.hljs { background: none; }</style>
+
+    <!-- Ghost outputs important style and meta data with this tag -->
+        <link rel="canonical" href="//%E5%AD%A6%E4%B9%A0%E5%8A%A8%E7%94%BB%E7%B3%BB%E5%88%97-%E7%90%86%E8%A7%A3CALayer" />
+    <meta name="referrer" content="origin" />
+    <link rel="next" href="/page2/" />
+
+    <meta property="og:site_name" content="面向自由编程" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="学习动画系列---理解CALayer" />
+    <meta property="og:description" content="Freelf's Blog" />
+    <meta property="og:url" content="//%E5%AD%A6%E4%B9%A0%E5%8A%A8%E7%94%BB%E7%B3%BB%E5%88%97-%E7%90%86%E8%A7%A3CALayer" />
+    <meta property="og:image" content="/assets/images/cover1.jpg" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="学习动画系列---理解CALayer" />
+    <meta name="twitter:description" content="Freelf's Blog" />
+    <meta name="twitter:url" content="//%E5%AD%A6%E4%B9%A0%E5%8A%A8%E7%94%BB%E7%B3%BB%E5%88%97-%E7%90%86%E8%A7%A3CALayer" />
+    <meta name="twitter:image:src" content="/assets/images/cover1.jpg" />
+
+    <script type="application/ld+json">
+{
+    "@context": "http://schema.org",
+    "@type": "Website",
+    "publisher": "面向自由编程",
+    "name": "学习动画系列---理解CALayer",
+    "url": "//%E5%AD%A6%E4%B9%A0%E5%8A%A8%E7%94%BB%E7%B3%BB%E5%88%97-%E7%90%86%E8%A7%A3CALayer",
+    "image": "/assets/images/cover1.jpg",
+    "description": "Freelf's Blog"
+}
+    </script>
+
+    <meta name="generator" content="Jekyll 3.0.0" />
+    <link rel="alternate" type="application/rss+xml" title="面向自由编程" href="/feed.xml" />
+
+
+</head>
+<body class="home-template nav-closed">
+
+    <!-- The blog navigation links -->
+    <div class="nav">
+    <h3 class="nav-title">Menu</h3>
+    <a href="#" class="nav-close">
+        <span class="hidden">Close</span>
+    </a>
+    <ul>
+        <li class="nav-home " role="presentation"><a href="/">Home</a></li>
+        <li class="nav-about " role="presentation"><a href="/about">About</a></li>
+    </ul>
+    <a class="subscribe-button icon-feed" href="/feed.xml">Subscribe</a>
+</div>
+<span class="nav-cover"></span>
+
+
+    <div class="site-wrapper">
+
+        <!-- All the main content gets inserted here, index.hbs, post.hbs, etc -->
+        <!-- default -->
+<!-- The comment above "< default" means - insert everything in this file into -->
+<!-- the [body] of the default.hbs template, which contains our header/footer. -->
+
+<!-- Everything inside the #post tags pulls data fom the post -->
+<!-- #post -->
+<header class="main-header post-head no-cover">
+    <nav class="main-nav  clearfix">
+        <a class="back-button icon-arrow-left" href="/">Home</a>
+        <a class="menu-button icon-menu" href="#"><span class="word">Menu</span></a>
+    </nav>
+</header>
+
+<main class="content" role="main">
+
+    <article class="post">
+
+        <header class="post-header">
+            <h1 class="post-title">学习动画系列---理解CALayer</h1>
+            <section class="post-meta">
+                <!-- <a href='/'>Freelf</a> -->
+
+                
+                
+                <!-- <a href='/author/Freelf'>Freelf</a> -->
+                
+                
+                <time class="post-date"
+                    datetime="2016-11-21">21 Nov 2016</time>
+                <!-- [[tags prefix=" on "]] -->
+                
+                <!-- on -->
+                
+                
+                <a href='/tag/Core'>Core</a>,
+                
+                
+                
+                <a href='/tag/Animation'>Animation</a>
+                
+                
+                
+            </section>
+        </header>
+
+        <section class="post-content">
+
+            <p>  好长时间没写东西了，由于刚换了工作，一直在忙于熟悉业务，和一些新业务的开发，没有时间对自己的技术进行修行。这段时间终于闲下来了，可以找些自己感兴趣的东西来好好学习下了。最近在学习些高级动画，在gitbook上面看到一个<a href="https://www.gitbook.com/book/zsisme/ios-/details">iOS核心动画高级技巧</a>，阅读了下，写的是一些动画的基础。毕竟学东西，我们要从基础学起嘛。你连1+1都不会算，怎么学习数学，这是一个道理。好吧，我有些跑题了😀。我们平常用的UIView可以实现一些基础的动画，但是有时产品🐶要做一个非常牛逼的动画时，我们就有些傻眼了。这里就需要用到一个高级东西了，在我们iOS里面叫Core Animation，下面我们就来系列学下这个牛逼的东西。先来学习下比UIView高级些的东西，这个东西就叫CALayer。
+<!-- more --></p>
+<h1 id="calayer和uiview">CALayer和UIView</h1>
+<p>  iOS中所有的view都是<code class="highlighter-rouge">UIView</code>派生来的。<code class="highlighter-rouge">UIView</code>可以处理触摸事件，可以支持绘图，可以做仿射变换（其实就是旋转和缩放），<code class="highlighter-rouge">UIView</code>还可以做简单的类似于滑动，或者渐变动画。</p>
+
+<p>  <code class="highlighter-rouge">CALayer</code>和<code class="highlighter-rouge">UIView</code>类似，同样可以包含一些内容，管理layer的位置，它也有一些方法和属性用来做动画和变幻，和<code class="highlighter-rouge">UIView</code>最大的不同就是<code class="highlighter-rouge">CALayer</code>不能处理用户交互。</p>
+
+<p>  每一个<code class="highlighter-rouge">UIView</code>都有一个<code class="highlighter-rouge">CALayer</code>的实例的图层属性，<code class="highlighter-rouge">UIView</code>的职责就是负责管理创建这个layer，以确保党姿势图在层级关系中添加或者移除时，他们关联的图层也同样对应在层级关系树当中有同样的操作。</p>
+
+<p>  实际上这些背后关联的图层才是真正用来在屏幕上显示和做动画的，<code class="highlighter-rouge">UIView</code>仅仅是对它的一个封装。提供了一些iOS类似于处理触摸的具体功能，以及Core Animation底层方法的高级接口。至于为什么iOS要基于<code class="highlighter-rouge">UIView</code>和<code class="highlighter-rouge">CALayer</code>提供两个平行的层级关系呢？~~这不是多此一举么？~~这样做的原因在于职责分离，也能避免很多的重复代码。在iOS和Mac OS两个平台上，时间和用户交互有很多不同，这个大家都能理解，一个是多点触控，一个是鼠标键盘。把这种共能逻辑分开并应用的独立的Core Animation框架，苹果就能再iOS和Mac OS之间共享代码。反正底层都一样，只是封装成一个iOS用，一个Mac OS用。这就是iOS有UIKit，Mac OS有AppKit。</p>
+
+<p>  实际上，这里并不是两个层级关系，而是四个，处理视图层级和图层树，还存在呈现树和渲染树。我还没有看到这里，后面看到了在写后两个层级。😁</p>
+
+<h1 id="calayer的能力">CALayer的能力</h1>
+
+<p>  其实呢，对于一些简单的需求来说，我们没必要处理<code class="highlighter-rouge">CALayer</code>。因为<code class="highlighter-rouge">UIView</code>的动画API可以让动画变得简单。但是简单的代价就是不灵活。对于我这种完美主义➕强迫症患者来说，你这么不听话，让我怎么玩啊。于是我们就需要求Core Animation来帮忙了。我们始终要相信我们可以做出很牛逼的效果。请原谅我又吹牛逼了😄。</p>
+
+<p>  我们已经说了<code class="highlighter-rouge">CALayer</code>不能处理触摸时间，那么<code class="highlighter-rouge">CALayer</code>有哪些<code class="highlighter-rouge">UIView</code>没有的功能呢，上帝是公平的。既然<code class="highlighter-rouge">CALayer</code>不能处理触摸事件，那么它肯定有一些强大的功能。下面我们来列举下：</p>
+
+<ul>
+  <li>阴影，圆角，带颜色的边框。</li>
+  <li>3D变换。</li>
+  <li>非矩形范围。ps：这个还不知是个什么东东。</li>
+  <li>透明遮罩。</li>
+  <li>多级非线性动画。ps：这个也不知道是什么东西。</li>
+</ul>
+
+<p>  虽然我不懂有些东西，但是当我读玩这本书并且写完这个系列时，~~我必将很吊~~。</p>
+
+<h1 id="使用calayer">使用CALayer</h1>
+
+<p>  废了这么多话，下面来具体使用下CALayer下吧，毕竟光说不用嘴上功夫。下面打开你的<code class="highlighter-rouge">Xcode</code>然后cmd+shift+n，然后想一个酷炫的名字开始我们使用<code class="highlighter-rouge">CALayer</code>吧。（ps：每次新建工程我想名字都要想好久哦。语文不好真的不行。）</p>
+
+<p>  我们要怎么使用<code class="highlighter-rouge">CALayer</code>呢，我们要做到的就是在一个橘色的view上面加一个蓝色块，不用通过<code class="highlighter-rouge">addSubView</code>。好吧，在屏幕中间线添加那个橘色的view。这个我想小学生都会把。对不起，我又看不起小学生了。不扯别的了。不管你通过IB还是代码，反正我们很快就可以把橘色的view添加上来，下面我们通过下面的代码就可以把蓝色的小块加上来。</p>
+
+<pre><code class="language-objective-c">  //取到橘色view的backing layer
+  CALayer *backLayer  = self.backView.layer;
+  //新建一个蓝色layer
+  CALayer *blueLayer = [CALayer layer];
+  blueLayer.backgroundColor = [UIColor blueColor].CGColor;
+  blueLayer.frame = CGRectMake(0, 0, 50, 50);
+  //添加到橘色view的backing layer
+  [backLayer addSublayer:blueLayer];
+</code></pre>
+
+<p>  通过上面的代码我们就可以实现了，有图有真相。请看下图：
+<span><img src="\images\CALayer使用\1.png" /></span></p>
+
+<p>  一个view只有一个相关联的图层（自动创建），同事它也可以支持添加无数个图层，我们可以显示的创建一个单独的图层，并且把它直接添加到视图关联图层的自图层。尽管可以这样添加图层，但往往我们只是简单的处理视图，他们关联的图层并不需要额外的手动添加字图层。</p>
+
+<p>  使用关联的视图而不是<code class="highlighter-rouge">CALayer</code>的好处在于，你能使用所有<code class="highlighter-rouge">CALayer</code>底层特性的同时，也可以使用<code class="highlighter-rouge">UIView</code>的高级API。（比如自动排版，布局和事件处理）。</p>
+
+<p>  然而，在下面这些条件的时候，我们可能更需要<code class="highlighter-rouge">CALayer</code>而不是<code class="highlighter-rouge">UIView</code>：</p>
+
+<ul>
+  <li>开发同事可以在Mac OS上运行的跨平台应用。</li>
+  <li>使用多种CALayer子类，并且不想创建额外的<code class="highlighter-rouge">UIView</code>去封装他们的所有。</li>
+  <li>做一些对性能特别挑剔的工作。对于我们来说，我们都希望做一些好的产品，这是我们的追求嘛，所以基于这一点，我们就需要好好学习下这本书。</li>
+</ul>
+
+<p>  当然了，这些例子都很少见。总得来说，处理<code class="highlighter-rouge">UIView</code>比单独处理<code class="highlighter-rouge">CALayer</code>更加方便。</p>
+
+<h1 id="总结">总结</h1>
+
+<p>  这里我只是简单的了解了下<code class="highlighter-rouge">CALayer</code>，后面我会继续学下这个类的一些其他东西，再来分享。</p>
+
+
+
+        </section>
+
+        <footer class="post-footer">
+
+            <!-- Everything inside the #author tags pulls data from the author -->
+            <!-- #author-->
+            
+            
+            
+            <figure class="author-image">
+                <a class="img" href="https://github.com/zhangdongpo"
+                    style="background-image: url(/assets/images/freelf.jpg)"><span
+                        class="hidden">Freelf's Picture</span></a>
+            </figure>
+            
+
+            <section class="author">
+                <h4><a href="/author/Freelf">Freelf</a></h4>
+
+                
+                <p> iOS Developer</p>
+                
+                <div class="author-meta">
+                    <span class="author-location icon-location">
+                        Beijing, China</span>
+                    <span class="author-link icon-link"><a href="https://freelf.me"> freelf.me</a></span>
+                </div>
+            </section>
+
+            <!-- /author  -->
+
+            <section class="share">
+                <h4>Share this post</h4>
+                <a class="icon-twitter"
+                    href="http://twitter.com/share?text=学习动画系列---理解CALayer&amp;url=%E5%AD%A6%E4%B9%A0%E5%8A%A8%E7%94%BB%E7%B3%BB%E5%88%97-%E7%90%86%E8%A7%A3CALayer"
+                    onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+                    <span class="hidden">Twitter</span>
+                </a>
+                <a class="icon-facebook"
+                    href="https://www.facebook.com/sharer/sharer.php?u=%E5%AD%A6%E4%B9%A0%E5%8A%A8%E7%94%BB%E7%B3%BB%E5%88%97-%E7%90%86%E8%A7%A3CALayer"
+                    onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+                    <span class="hidden">Facebook</span>
+                </a>
+                <a class="icon-google-plus"
+                    href="https://plus.google.com/share?url=%E5%AD%A6%E4%B9%A0%E5%8A%A8%E7%94%BB%E7%B3%BB%E5%88%97-%E7%90%86%E8%A7%A3CALayer"
+                    onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+                    <span class="hidden">Google+</span>
+                </a>
+            </section>
+            
+            
+
+            <!-- Add Disqus Comments -->
+            
+            <div id="gitalk-container"></div>
+<script src="/assets/js/md5.min.js"></script>
+<script>
+    const gitalk = new Gitalk({
+        clientID: 'b62d799fc3a6b1dd7de9',
+        clientSecret: 'd5a315aa0855dd6a00cdb4025b88059c1b0c585f',
+        repo: 'blog',
+        owner: 'zhangdongpo',
+        admin: 'zhangdongpo',
+        id: md5(location.pathname), // Ensure uniqueness and length less than 50
+        distractionFreeMode: false // Facebook-like distraction free mode
+    })
+    gitalk.render('gitalk-container')
+</script>
+            
+
+        </footer>
+
+    </article>
+
+</main>
+
+<!-- /post -->
+
+        <!-- The tiny footer at the very bottom -->
+        <footer class="site-footer clearfix">
+          <section class="copyright"><a href="/">面向自由编程</a> &copy; 2023</section>
+          <section class="poweredby">Proudly published with <a href="https://jekyllrb.com/">Jekyll</a> using <a href="https://github.com/jekyller/jasper">Jasper</a></section>
+        </footer>
+    </div>
+    <!-- highlight.js -->
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+    <!-- jQuery needs to come before `` so that jQuery can be used in code injection -->
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.12.0.min.js"></script>
+    <!-- Ghost outputs important scripts and data with this tag -->
+    <!--  -->
+    <!-- Add Google Analytics  -->
+        <!-- Google Analytics Tracking code -->
+     <script>
+	    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	    ga('create', '', 'auto');
+	    ga('send', 'pageview');
+
+     </script>
+    <!-- Fitvids makes video embeds responsive and awesome -->
+    <script type="text/javascript" src="/assets/js/jquery.fitvids.js"></script>
+    <!-- The main JavaScript file for Casper -->
+    <script type="text/javascript" src="/assets/js/index.js"></script>
+
+</body>
+</html>

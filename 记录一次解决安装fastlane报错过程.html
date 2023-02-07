@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.css">
+        <script src="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js"></script>
+<head>
+    <!-- Document Settings -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- Page Meta -->
+    <title>记录一次解决安装fastlane报错过程</title>
+    <meta name="description" content="Freelf's Blog" />
+
+    <!-- Mobile Meta -->
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Brand icon -->
+    <link rel="shortcut icon" href="/assets/images/favicon.ico" >
+
+    <!-- Styles'n'Scripts -->
+    <link rel="stylesheet" type="text/css" href="/assets/css/screen.css" />
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Merriweather:300,700,700italic,300italic|Open+Sans:700,400" />
+    <link rel="stylesheet" type="text/css" href="/assets/css/syntax.css" />
+
+    <!-- highlight.js -->
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/styles/default.min.css">
+    <style>.hljs { background: none; }</style>
+
+    <!-- Ghost outputs important style and meta data with this tag -->
+        <link rel="canonical" href="//%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E8%A7%A3%E5%86%B3%E5%AE%89%E8%A3%85fastlane%E6%8A%A5%E9%94%99%E8%BF%87%E7%A8%8B" />
+    <meta name="referrer" content="origin" />
+    <link rel="next" href="/page2/" />
+
+    <meta property="og:site_name" content="面向自由编程" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="记录一次解决安装fastlane报错过程" />
+    <meta property="og:description" content="Freelf's Blog" />
+    <meta property="og:url" content="//%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E8%A7%A3%E5%86%B3%E5%AE%89%E8%A3%85fastlane%E6%8A%A5%E9%94%99%E8%BF%87%E7%A8%8B" />
+    <meta property="og:image" content="/assets/images/cover1.jpg" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="记录一次解决安装fastlane报错过程" />
+    <meta name="twitter:description" content="Freelf's Blog" />
+    <meta name="twitter:url" content="//%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E8%A7%A3%E5%86%B3%E5%AE%89%E8%A3%85fastlane%E6%8A%A5%E9%94%99%E8%BF%87%E7%A8%8B" />
+    <meta name="twitter:image:src" content="/assets/images/cover1.jpg" />
+
+    <script type="application/ld+json">
+{
+    "@context": "http://schema.org",
+    "@type": "Website",
+    "publisher": "面向自由编程",
+    "name": "记录一次解决安装fastlane报错过程",
+    "url": "//%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E8%A7%A3%E5%86%B3%E5%AE%89%E8%A3%85fastlane%E6%8A%A5%E9%94%99%E8%BF%87%E7%A8%8B",
+    "image": "/assets/images/cover1.jpg",
+    "description": "Freelf's Blog"
+}
+    </script>
+
+    <meta name="generator" content="Jekyll 3.0.0" />
+    <link rel="alternate" type="application/rss+xml" title="面向自由编程" href="/feed.xml" />
+
+
+</head>
+<body class="home-template nav-closed">
+
+    <!-- The blog navigation links -->
+    <div class="nav">
+    <h3 class="nav-title">Menu</h3>
+    <a href="#" class="nav-close">
+        <span class="hidden">Close</span>
+    </a>
+    <ul>
+        <li class="nav-home " role="presentation"><a href="/">Home</a></li>
+        <li class="nav-about " role="presentation"><a href="/about">About</a></li>
+    </ul>
+    <a class="subscribe-button icon-feed" href="/feed.xml">Subscribe</a>
+</div>
+<span class="nav-cover"></span>
+
+
+    <div class="site-wrapper">
+
+        <!-- All the main content gets inserted here, index.hbs, post.hbs, etc -->
+        <!-- default -->
+<!-- The comment above "< default" means - insert everything in this file into -->
+<!-- the [body] of the default.hbs template, which contains our header/footer. -->
+
+<!-- Everything inside the #post tags pulls data fom the post -->
+<!-- #post -->
+<header class="main-header post-head no-cover">
+    <nav class="main-nav  clearfix">
+        <a class="back-button icon-arrow-left" href="/">Home</a>
+        <a class="menu-button icon-menu" href="#"><span class="word">Menu</span></a>
+    </nav>
+</header>
+
+<main class="content" role="main">
+
+    <article class="post">
+
+        <header class="post-header">
+            <h1 class="post-title">记录一次解决安装fastlane报错过程</h1>
+            <section class="post-meta">
+                <!-- <a href='/'>Freelf</a> -->
+
+                
+                
+                <!-- <a href='/author/Freelf'>Freelf</a> -->
+                
+                
+                <time class="post-date"
+                    datetime="2018-05-29">29 May 2018</time>
+                <!-- [[tags prefix=" on "]] -->
+                
+                <!-- on -->
+                
+                
+                <a href='/tag/fastlane'>fastlane</a>
+                
+                
+                
+            </section>
+        </header>
+
+        <section class="post-content">
+
+            <p>最近做新项目，因为将来会涉及到频繁打包去测试。为了提高打包效率，决定使用下 fastlane。按照流程先来安装。结果不出意料的报错了。</p>
+
+<!--more-->
+
+<p><img src="https://nightwish.oss-cn-beijing.aliyuncs.com/1527133572.png" alt="" />
+我去，我命令行本来就不熟悉，再加上这个是一个 ruby 工具。我更不会 ruby。心里一万只草泥马奔过。做 iOS 需要会的好多啊。结果从下午 5 点半搞到 7 点也没搞定。算了回家吃饭了。回到家，用家里的电脑装，发现异常顺利，一点错不报，一下就成功了。这让我好难受，心里想估计是 Xcode command tools 错了。今天来到公司把 Xcode 命令行工具删了，重新下载。再次安装，妈的，还是一样。后来没办法了，网上的方法不对头啊，去看日志，发现有报错。
+<img src="https://nightwish.oss-cn-beijing.aliyuncs.com/1527133989.png" alt="" />
+然后就去搜这个错误的解决方法，在https://github.com/cython/cython/issues/2009 这里找到答案。没办法，试一下吧。抱着把系统玩坏的想法，删了/usr/local/include 这个文件，然后用 brew 重新下载了 llvm。再试一次，我去，终于成功了。放张图纪念下～
+<img src="https://nightwish.oss-cn-beijing.aliyuncs.com/1527134186.png" alt="" />
+经过这次安装过程，我发现，找问题还是要去看日志，看到底哪里错误了，去解决根本问题。装这个东西浪费了一上午时间，虽然过程很坎坷，但是结果很美丽。以后可以随便打包啦！先安装上，还没开始用，等用完之后，再来写一下使用的感觉。</p>
+
+
+        </section>
+
+        <footer class="post-footer">
+
+            <!-- Everything inside the #author tags pulls data from the author -->
+            <!-- #author-->
+            
+            
+            
+            <figure class="author-image">
+                <a class="img" href="https://github.com/zhangdongpo"
+                    style="background-image: url(/assets/images/freelf.jpg)"><span
+                        class="hidden">Freelf's Picture</span></a>
+            </figure>
+            
+
+            <section class="author">
+                <h4><a href="/author/Freelf">Freelf</a></h4>
+
+                
+                <p> iOS Developer</p>
+                
+                <div class="author-meta">
+                    <span class="author-location icon-location">
+                        Beijing, China</span>
+                    <span class="author-link icon-link"><a href="https://freelf.me"> freelf.me</a></span>
+                </div>
+            </section>
+
+            <!-- /author  -->
+
+            <section class="share">
+                <h4>Share this post</h4>
+                <a class="icon-twitter"
+                    href="http://twitter.com/share?text=记录一次解决安装fastlane报错过程&amp;url=%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E8%A7%A3%E5%86%B3%E5%AE%89%E8%A3%85fastlane%E6%8A%A5%E9%94%99%E8%BF%87%E7%A8%8B"
+                    onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+                    <span class="hidden">Twitter</span>
+                </a>
+                <a class="icon-facebook"
+                    href="https://www.facebook.com/sharer/sharer.php?u=%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E8%A7%A3%E5%86%B3%E5%AE%89%E8%A3%85fastlane%E6%8A%A5%E9%94%99%E8%BF%87%E7%A8%8B"
+                    onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+                    <span class="hidden">Facebook</span>
+                </a>
+                <a class="icon-google-plus"
+                    href="https://plus.google.com/share?url=%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E8%A7%A3%E5%86%B3%E5%AE%89%E8%A3%85fastlane%E6%8A%A5%E9%94%99%E8%BF%87%E7%A8%8B"
+                    onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+                    <span class="hidden">Google+</span>
+                </a>
+            </section>
+            
+            
+
+            <!-- Add Disqus Comments -->
+            
+            <div id="gitalk-container"></div>
+<script src="/assets/js/md5.min.js"></script>
+<script>
+    const gitalk = new Gitalk({
+        clientID: 'b62d799fc3a6b1dd7de9',
+        clientSecret: 'd5a315aa0855dd6a00cdb4025b88059c1b0c585f',
+        repo: 'blog',
+        owner: 'zhangdongpo',
+        admin: 'zhangdongpo',
+        id: md5(location.pathname), // Ensure uniqueness and length less than 50
+        distractionFreeMode: false // Facebook-like distraction free mode
+    })
+    gitalk.render('gitalk-container')
+</script>
+            
+
+        </footer>
+
+    </article>
+
+</main>
+
+<!-- /post -->
+
+        <!-- The tiny footer at the very bottom -->
+        <footer class="site-footer clearfix">
+          <section class="copyright"><a href="/">面向自由编程</a> &copy; 2023</section>
+          <section class="poweredby">Proudly published with <a href="https://jekyllrb.com/">Jekyll</a> using <a href="https://github.com/jekyller/jasper">Jasper</a></section>
+        </footer>
+    </div>
+    <!-- highlight.js -->
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.3.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+    <!-- jQuery needs to come before `` so that jQuery can be used in code injection -->
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.12.0.min.js"></script>
+    <!-- Ghost outputs important scripts and data with this tag -->
+    <!--  -->
+    <!-- Add Google Analytics  -->
+        <!-- Google Analytics Tracking code -->
+     <script>
+	    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+	    ga('create', '', 'auto');
+	    ga('send', 'pageview');
+
+     </script>
+    <!-- Fitvids makes video embeds responsive and awesome -->
+    <script type="text/javascript" src="/assets/js/jquery.fitvids.js"></script>
+    <!-- The main JavaScript file for Casper -->
+    <script type="text/javascript" src="/assets/js/index.js"></script>
+
+</body>
+</html>
