@@ -5,4 +5,3 @@ gem 'jekyll-paginate'
 gem 'jekyll-sitemap'
 gem "jekyll-pdf-embed"
 gem 'jekyll-feed'
-gem 'jekyll-sass-converter', '~> 2.0'
