@@ -1,74 +1,68 @@
-# Jykell configuration
-#markdown: redcarpet
-#highlighter: pygments
-markdown: kramdown
+# Site Information
+title: Freelf
+description: "面向自由编程"
+url: https://blog.freelf.me
+repo: freelf/blog
+lang: zh-CN
+timezone: Africa/El_Aaiun
+
+# Social Media and External URLs
+github: freelf
+zhihu: freelf93
+twitter: freeeeeeeelf
+v2ex: BeyondJG
+menu:
+  - title: "Categories"
+    url: "/categories.html"
+  - title: "About"
+    url: "/about.html"
+
+# SEO and Analytics
+google_analytics: G-KS7EDB6BRM
+
+# Build Settings
+paginate: 10
+post_ext: md
+page_ext: md
+post_layout: post
+page_layout: page
+titlecase: true
+future: true
 highlighter: rouge
-paginate: 5
-language: "en-uk"
+markdown: kramdown
+permalink: /:year-:month-:day/:title.html
+sass:
+  sass_dir: _sass
+  style: compressed
 
-# Website info
-name: "面向自由编程"
-description: "Freelf's Blog"
+collections:
+  posts:
+    output: true
+    permalink: /:year-:month-:day/:title.html
+  posts_en:
+    output: true
+    permalink: /en/:year-:month-:day/:title.html
+    sort_by: date
 
-short_url: "freelf.me"
-author: "Freelf"
-disqus: username
-# edit baseurl to simply '/' if using as your personal page (instead of a project page)
-baseurl: "/"
-
-# Permalinks
-permalink: /:title
-# permalink: /author/:username
-# permalink: /tag/:tag
-
-#gitalk
-gitalk: 
-  gitalk: true
-  gitalk_clientID: 'b62d799fc3a6b1dd7de9'
-  gitalk_Secret: 'd5a315aa0855dd6a00cdb4025b88059c1b0c585f'
-  gitalk_repo: 'blog'
-  gitalk_owner: 'zhangdongpo'
-  gitalk_admin: 'zhangdongpo'
-  
-# gems and other configs
-plugins: [jekyll-paginate]
-
-# Additional settings available on the front-matter
-# Site logo in the index.html (as in demo.ghost.io)
-# Author's page cover in _layouts/author.html
-# The same for page.html and tag.html layouts
-# Post's page cover as a per-post basis _posts/...
-# Disqus comments as a per-post basis
-# ...
-
-# Settings for builing master branch with travis-ci
-# with jekyll-travis
-
-# Settings for deploy rake task
-# Username and repo of Github repo, e.g.
-# https://github.com/USERNAME/REPO.git
-# username defaults to ENV['GIT_NAME'] used by Travis
-# repo defaults to USERNAME.github.io
-# Branch defaults to "source" for USERNAME.github.io
-# or "master" otherwise
-safe: false
-lsi: false
-username: zhangdongpo
-repo: blog
-branch: master
-relative_source: ../jasper/
-destination: ../jasper-pages/
-production_url: https://zhangdogpo.github.io/blog/
-source_url: https://github.com/zhangdongpo/blog/
-
+include: [".htaccess"]
 exclude:
-  - README.md
-  - Rakefile
-  - Gemfile
-  - Gemfile.lock
-  - changelog.md
-  - "*.Rmd"
-  - vendor
-  - .travis.yml
-  - node_modules
-  - .git
+  [
+    "Gemfile",
+    "Gemfile.lock",
+    "README.md",
+    "LICENSE",
+    "package.json",
+    "node_modules",
+  ]
+
+# Plugins
+plugins:
+  - jekyll-paginate
+  - jekyll-pdf-embed
+  - jekyll-sitemap
+  - jekyll-feed
+
+# Custom Site Settings
+showBuyCoffee: true
+assetUrl: //blog.freelf.me/images/
+defaultImage: data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==

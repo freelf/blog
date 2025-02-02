@@ -1,28 +1,31 @@
 ---
-layout: null
+layout: none
 ---
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0"
+  xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>{{ site.name | xml_escape }} - Articles</title>
+    <title>Tw93 Blog</title>
     <description>{% if site.description %}{{ site.description | xml_escape }}{% endif %}</description>
-    <link>
-    {{ site.url }}</link>
-    {% for post in site.posts %}
-      {% unless post.link %}
-      <item>
-        <title>{{ post.title | xml_escape }}</title>
-        {% if post.excerpt %}
-          <description>{{ post.excerpt | xml_escape }}</description>
-        {% else %}
-          <description>{{ post.content | xml_escape }}</description>
-        {% endif %}
-        <pubDate>{{ post.date | date: "%a, %d %b %Y %H:%M:%S %z" }}</pubDate>
-        <link>
-        {{ site.url }}{{ post.url }}</link>
-        <guid isPermaLink="true">{{ site.url }}{{ post.url }}</guid>
-      </item>
-      {% endunless %}
-    {% endfor %}
+    <image>
+      <url>https://gw.alicdn.com/imgextra/i1/O1CN01BjlaXE1auDGoniJGl_!!6000000003389-2-tps-480-444.png</url>
+    </image>
+    <follow_challenge>
+      <feedId>41147805272531976</feedId>
+      <userId>42909600318350336</userId>
+    </follow_challenge>
+    <link>{{ site.url }}</link>
+    <atom:link href="{{ site.url }}/feed.xml" rel="self" type="application/rss+xml" />
+		{% for post in site.posts limit:10 %}
+    {% if post.hide != true %}
+    <item>
+      <title>{{ post.title | xml_escape }}</title>
+      <description>{{ post.content | xml_escape }}</description>
+      <pubDate>{{ post.date | date: "%Y-%m-%d" }}</pubDate>
+      <link>{{ site.url }}{{ post.url }}</link>
+      <guid isPermaLink="true">{{ site.url }}{{ post.url }}</guid>
+    </item>
+    {% endif %}
+		{% endfor %}
   </channel>
 </rss>
